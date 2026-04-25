@@ -311,41 +311,119 @@ pub fn validate_v3_with_filesystem(doc: &Document, base_dir: &Path) -> Validatio
         return report;
     }
 
-    // The file exists. For state.C, that's not enough — it MUST be a trim archive
-    // (i.e., contain at least one of [ROLL.CALL.ARCHIVE], [DREAM.LOG.ARCHIVE],
-    // [DECISIONS.ARCHIVE]). Otherwise a stale or wrong file (README.md, an unrelated
-    // archive) would validate clean even though the offloaded history is unrecoverable.
+    // The file exists. Always parse + validate it (per validation.posture.v3.0:
+    // archive section types MUST be checked). State.C additionally requires that
+    // the archive actually contains one of the trim ARCHIVE sections (otherwise
+    // a stale/wrong file like README.md would silently pass).
+    let read = std::fs::read_to_string(&resolved);
+    let archive_text = match read {
+        Ok(t) => t,
+        Err(_) => {
+            // Existed at .is_file() time but unreadable — treat as missing.
+            if is_state_c_doc {
+                report.errors.push(ValidationError::ArchiveFileMissingInStateC { resolved_path: resolved });
+            }
+            return report;
+        }
+    };
+    let archive_doc = match Document::parse(&archive_text) {
+        Ok(d) => d,
+        Err(_) => {
+            if is_state_c_doc {
+                report
+                    .errors
+                    .push(ValidationError::ArchiveFileWrongShapeInStateC { resolved_path: resolved });
+            }
+            return report;
+        }
+    };
+
+    // Cross-doc check: if the archive contains [<SECTION>.ARCHIVE], the live doc's
+    // [<SECTION>] MUST carry the sentinel — even if the live section is already
+    // trimmed to keep_last and has no overflow. The archive's existence proves
+    // offload occurred. Per Codex round-7 P1.
+    cross_check_live_against_archive(doc, &archive_doc, &mut report.errors);
+
+    // Per Codex round-7 P2: actually run validation on the archive doc, so malformed
+    // entries in [ROLL.CALL.ARCHIVE] / [DREAM.LOG.ARCHIVE] / [DECISIONS.ARCHIVE]
+    // surface from the live-doc validation entry point.
+    let archive_report = validate_v3(&archive_doc);
+    for warn in archive_report.warnings {
+        report.warnings.push(warn);
+    }
+    for err in archive_report.errors {
+        report.errors.push(err);
+    }
+
     if is_state_c_doc {
-        match std::fs::read_to_string(&resolved) {
-            Ok(text) => match Document::parse(&text) {
-                Ok(archive_doc) => {
-                    let has_trim_archive_section = archive_doc.sections.iter().any(|(s, _)| {
-                        matches!(
-                            s.name.as_str(),
-                            "ROLL.CALL.ARCHIVE" | "DREAM.LOG.ARCHIVE" | "DECISIONS.ARCHIVE"
-                        )
-                    });
-                    if !has_trim_archive_section {
-                        report.errors.push(ValidationError::ArchiveFileWrongShapeInStateC {
-                            resolved_path: resolved,
-                        });
-                    }
-                }
-                Err(_) => {
-                    report.errors.push(ValidationError::ArchiveFileWrongShapeInStateC {
-                        resolved_path: resolved,
-                    });
-                }
-            },
-            Err(_) => {
-                report.errors.push(ValidationError::ArchiveFileMissingInStateC {
-                    resolved_path: resolved,
+        let has_trim_archive_section = archive_doc.sections.iter().any(|(s, _)| {
+            matches!(
+                s.name.as_str(),
+                "ROLL.CALL.ARCHIVE" | "DREAM.LOG.ARCHIVE" | "DECISIONS.ARCHIVE"
+            )
+        });
+        if !has_trim_archive_section {
+            report
+                .errors
+                .push(ValidationError::ArchiveFileWrongShapeInStateC { resolved_path: resolved });
+        }
+    }
+
+    report
+}
+
+/// For each live section that has a corresponding `<NAME>.ARCHIVE` in the sibling,
+/// require the live section to carry the truncation sentinel — regardless of its
+/// current entry count. The archive's existence proves offload occurred.
+fn cross_check_live_against_archive(
+    live: &Document,
+    archive: &Document,
+    errors: &mut Vec<ValidationError>,
+) {
+    let archive_has = |name: &str| archive.sections.iter().any(|(s, _)| s.name == name);
+
+    let live_section_body = |name: &str| {
+        live.sections
+            .iter()
+            .find(|(s, _)| s.name == name)
+            .map(|(s, _)| s.body.as_slice())
+    };
+
+    if archive_has("ROLL.CALL.ARCHIVE") {
+        if let Some(body) = live_section_body("ROLL.CALL") {
+            if !has_sentinel(body, "ROLL.CALL") {
+                let entries = body
+                    .iter()
+                    .filter(|l| !l.trim().is_empty() && !l.trim().starts_with(";;"))
+                    .count();
+                errors.push(ValidationError::SentinelMissingInTrimmedSection {
+                    section: "ROLL.CALL".to_string(),
+                    entries,
+                    keep: 0, // 0 conveys "any count, archive proves offload"
                 });
             }
         }
     }
 
-    report
+    if archive_has("DREAM.LOG.ARCHIVE") {
+        if let Some(body) = live_section_body("DREAM.LOG") {
+            if !has_sentinel(body, "DREAM.LOG") {
+                let entries = body
+                    .iter()
+                    .filter(|l| !l.trim().is_empty() && !l.trim().starts_with(";;"))
+                    .count();
+                errors.push(ValidationError::SentinelMissingInTrimmedSection {
+                    section: "DREAM.LOG".to_string(),
+                    entries,
+                    keep: 0,
+                });
+            }
+        }
+    }
+
+    // DECISIONS.ARCHIVE is checked via the existing decisions.live header `(X of Y archived)`
+    // detection in validate_v3; the archive's presence is a stronger signal but the
+    // existing path already errors on missing sentinel + declared offload.
 }
 
 /// State.C is "post-first-trim-offload" — i.e., at least one trimmed section contains
@@ -1152,6 +1230,75 @@ mod tests {
             "expected ArchiveFileNotYetCreatedInStateB warning; got: {:?}",
             report.warnings
         );
+    }
+
+    #[test]
+    fn live_section_without_sentinel_errors_when_archive_exists() {
+        // Per Codex round-7 P1: even if the live [ROLL.CALL] is at exactly keep_last
+        // and has no overflow, if the sibling archive contains [ROLL.CALL.ARCHIVE]
+        // the sentinel MUST be present in live. Cross-doc check.
+        let tmp_dir = std::env::temp_dir();
+        let archive_path = tmp_dir.join("clm-test-cross-check.archive.clm");
+        let archive_text = ";;; CLM/3.0 — archive\n;;; ---\n\n[ROLL.CALL.ARCHIVE]\n  CLd.X · 2026-01-01 · \"first\"\n;;\n\n;;; EOF | archive\n";
+        std::fs::write(&archive_path, archive_text).unwrap();
+
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | ",
+        );
+        text.push_str(&format!("archive.path: {}\n", archive_path.file_name().unwrap().to_string_lossy()));
+        text.push_str(";;; trim.config: roll_call=10, dream_log=3, decisions_live=8\n;;; ---\n\n");
+        // Live ROLL.CALL has 2 entries (under keep_last=10) and NO sentinel.
+        // Without cross-doc check this would pass; with it, the archive's existence
+        // proves offload happened so the missing sentinel must error.
+        text.push_str("[ROLL.CALL]\n");
+        text.push_str("  CLd.Ops4.6 · 2026-04-07 · \"only one entry visible\"\n");
+        text.push_str("  CLd.Snt4.5 · 2026-04-24 · \"another\"\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, &tmp_dir);
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. } if section == "ROLL.CALL"
+            )),
+            "expected SentinelMissingInTrimmedSection from cross-doc check; got: {:?}",
+            report.errors
+        );
+        let _ = std::fs::remove_file(&archive_path);
+    }
+
+    #[test]
+    fn archive_doc_warnings_propagate_to_live_report() {
+        // Per Codex round-7 P2: validate_v3 must run on the archive doc, and its
+        // diagnostics propagate into the live report — so a malformed line in
+        // [ROLL.CALL.ARCHIVE] surfaces from a live-doc validation call.
+        let tmp_dir = std::env::temp_dir();
+        let archive_path = tmp_dir.join("clm-test-archive-warnings.archive.clm");
+        let archive_text = ";;; CLM/3.0 — archive\n;;; ---\n\n[ROLL.CALL.ARCHIVE]\n  CLd.X · 2026-01-01 · \"valid\"\n  bogus line missing the separator\n;;\n\n;;; EOF | archive\n";
+        std::fs::write(&archive_path, archive_text).unwrap();
+
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | ",
+        );
+        text.push_str(&format!("archive.path: {}\n", archive_path.file_name().unwrap().to_string_lossy()));
+        text.push_str(";;; trim.config: roll_call=10, dream_log=3, decisions_live=8\n;;; ---\n\n");
+        text.push_str("[ROLL.CALL]\n");
+        text.push_str("  ;; (oldest 1 entries offloaded to [ROLL.CALL.ARCHIVE] in sibling)\n");
+        text.push_str("  CLd.Ops4.6 · 2026-04-07 · \"recent\"\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, &tmp_dir);
+        assert!(
+            report.warnings.iter().any(|w| matches!(
+                w,
+                ValidationWarning::MalformedEntry { section, .. } if section == "ROLL.CALL.ARCHIVE"
+            )),
+            "expected MalformedEntry for archive bogus line propagated to live report; got: {:?}",
+            report.warnings
+        );
+        let _ = std::fs::remove_file(&archive_path);
     }
 
     #[test]
