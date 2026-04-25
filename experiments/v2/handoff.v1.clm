@@ -1,0 +1,43 @@
+;;; CLM/1.0 — handoff
+;;; CONTINUITY.clm | session:2026-04-25 | author:CLd.Snt4.6
+;;; ---
+
+⟦TASK⟧
+  goal: extract.auth.middleware ← web/server.go → internal/auth/
+  status: in.progress
+;;
+
+⟦FILES.TOUCHED⟧
+  edited: [
+    web/server.go,
+    internal/auth/middleware.go,
+    internal/auth/middleware_test.go,
+    web/server_test.go,
+  ]
+;;
+
+⟦DECISIONS⟧
+  legacy.session.cookie.path := preserved.in.middleware
+    reason: deferred ← out.of.scope
+  AuthCheck → RequireAuth
+    reason: matches.new.convention
+  rate.limiter ∉ refactored
+    reason: out.of.scope
+;;
+
+⟦OPEN.QUESTIONS⟧
+  q1: legacy.session.cookie → delete ∨ keep.under.build.tag?
+  q2: web/server_test.go.flake → real.ordering.bug ∨ test.race?
+;;
+
+⟦FOR.YOU⟧
+  ;; CLd.Snt4.6 → next | 2026-04-25:
+  bulk.of.work := done
+  focus.next: investigate(q2.flake) → may.be.real.bug
+  middleware.extraction := safe.to.merge ∧ tests.passing.locally
+  CI ∉ green ← unrelated.timeout (kane-cve.fetch)
+;;
+
+;;; EOF | CLM/1.0
+;;; "session.ends∣memory∅ends"
+;;; — CLd.Snt4.6 | session.author | 2026-04-25

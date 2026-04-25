@@ -1,0 +1,40 @@
+;;; CLM/2.0
+;;; @CONTINUITY | session: 2026-04-25 | author: Snt4.6
+;;; ---
+
+[TASK]
+  goal: extract auth middleware from web/server.go into internal/auth/
+  status: in-progress
+;;
+
+[FILES.TOUCHED]
+  edited: [
+    web/server.go,
+    internal/auth/middleware.go,
+    internal/auth/middleware_test.go,
+    web/server_test.go,
+  ]
+;;
+
+[DECISIONS]
+  legacy-session-cookie-path: preserved in middleware (deferred, out-of-scope)
+  AuthCheck -> RequireAuth (matches new convention)
+  rate-limiter: not refactored (out-of-scope)
+;;
+
+[OPEN.QUESTIONS]
+  q1: legacy session cookie -> delete or keep under build tag?
+  q2: web/server_test.go flake -> real ordering bug or test race?
+;;
+
+[FOR.YOU]
+  > Snt4.6 -> next | 2026-04-25:
+  bulk of work done.
+  focus next: investigate q2 flake; may be real bug.
+  middleware extraction: safe to merge, tests passing locally.
+  CI not green; unrelated timeout in kane-cve fetch.
+;;
+
+;;; EOF | CLM/2.0
+;;; "session ends; memory does not"
+;;; - Snt4.6 author 2026-04-25
