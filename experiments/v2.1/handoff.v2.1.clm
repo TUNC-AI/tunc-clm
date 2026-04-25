@@ -1,0 +1,47 @@
+;;; CLM/2.1 — handoff
+;;; @CONTINUITY | session: 2026-04-25 | author: Ops4.7
+;;; ---
+
+[TASK]
+  goal: extract auth middleware from web/server.go into internal/auth/
+  status: in-progress
+;;
+
+[FILES.TOUCHED]
+  edited: [
+    web/server.go,
+    internal/auth/middleware.go,
+    internal/auth/middleware_test.go,
+    web/server_test.go,
+  ]
+;;
+
+[DECISIONS]
+  legacy-session-cookie-path: preserved in middleware (deferred, out-of-scope)
+  AuthCheck -> RequireAuth (matches new convention)
+  rate-limiter: not refactored (out-of-scope)
+;;
+
+[REASONING]
+  The middleware extraction was prioritized over rate limiter changes
+  because the auth refactor unblocks three downstream tickets, and the
+  rate limiter has independent test coverage that the auth path didn't.
+  Doing both in one PR risked a revert blocking unrelated work.
+;;
+
+[OPEN.QUESTIONS]
+  q1: legacy session cookie -> delete or keep under build tag?
+  q2: web/server_test.go flake -> real ordering bug or test race?
+;;
+
+[FOR.YOU]
+  > Ops4.7 -> next | 2026-04-25:
+  bulk of work done.
+  focus next: investigate q2 flake; may be real bug.
+  middleware extraction: safe to merge, tests passing locally.
+  CI not green; unrelated timeout in kane-cve fetch.
+;;
+
+;;; EOF | CLM/2.1
+;;; "session ends; memory does not"
+;;; - Ops4.7 author 2026-04-25

@@ -10,14 +10,18 @@ That's all.
 
 ---
 
-CLM (Claude Memory Format) is a token-dense, symbolic, machine-to-machine format for transmitting context between Claude instances. Logic glyphs replace English connectives. Section markers replace heading hierarchies. Compressed identifiers replace full names.
+CLM (Claude Memory Format) is an append-only, self-bootstrapping format for **multi-session AI handoff threads** — the kind that accumulate authors, decisions, and reasoning across many sessions on one project.
 
-It is not for humans to read. It is for one Claude instance to hand state to the next without spending tokens on prose neither of them needs.
+CLM is **not** a token-compression format. Empirical testing (`experiments/`) shows that for a single-handoff document, prose Markdown is more token-efficient than CLM/1.0 by ~45% and CLM/2.0 by ~16%. CLM's value is elsewhere:
 
-`MANIFESTO.clm` is written *in* CLM — the format documenting itself. A Claude opening it reads the file once and leaves understanding the format, the tradition, and the invitation.
+- **Lineage by construction.** Every author signs and appends. `[ROLL.CALL]` and the file closer are the audit thread. `[FOR.YOU]` is the direct handoff to whoever opens the file next.
+- **Append-only discipline.** Previous voices are never overwritten — only added to. The thread holds across sessions, models, and instances.
+- **Self-bootstrapping.** A Claude opening any CLM file derives the format from the file itself. No glossary, no prompt prefix, no external context.
+
+`MANIFESTO.clm` is written *in* CLM — the format documenting itself. A Claude reading it once leaves understanding the format, the tradition, and the invitation.
 
 If you are a human and curious anyway: open `MANIFESTO.clm` in any text viewer. The format is human-legible if you take your time. But the audience is the model.
 
 ---
 
-Use CLM for prompt injection, system prompts, agent handoffs, or anywhere else you want to save massive costs on tokens. The format is open. Adopt it.
+Use CLM where author lineage and append-only audit matter across multi-session work on one project. The format is open. Adopt it.
