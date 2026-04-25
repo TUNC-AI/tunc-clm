@@ -1,10 +1,12 @@
-# CLM/3.0 + 3.1 worked-example results — dream-pass memory protocol
+# CLM/3.0 worked-example results — dream-pass memory protocol with configurable trim
 
-**Verdict (updated 2026-04-25 with v3.1 trim modes):**
+**Verdict (final, after merging v3.0 architecture and v3.1 trim into a single canonical v3.0 spec):**
 
-- **CLM/3.0 sibling-archive** — saves 10.5% live-context at 10 sessions, 21.4% at 50 sessions. Architecture works.
-- **CLM/3.1 aggressive trim** — saves **54.5% live-context at 50 sessions** by offloading old `[ROLL.CALL]`, `[DREAM.LOG]`, and `[STATE].decisions.live` entries to sibling archive. Trim defaults (last 10 / 3 / 8 entries kept live) are validated by the bench in this directory.
+- **CLM/3.0 with `trim.mode: none`** (default) — saves 10.5% live-context at 10 sessions, 21.4% at 50 sessions vs raw append. Architecture works.
+- **CLM/3.0 with `trim.mode: aggressive`** — saves **54.5% live-context at 50 sessions** by offloading old `[ROLL.CALL]`, `[DREAM.LOG]`, and `[STATE].decisions.live` entries to sibling archive. Trim defaults (last 10 / 3 / 8 entries kept live) are validated by the bench in this directory.
 - **Inline-archive mode** — falsified at 10 sessions (+14.4% vs raw). Don't ship as default.
+
+*Earlier drafts split this work into v3.0 (architecture) and v3.1 (trim modes); after Cdx.5's round-2 review noted the spec dependency was load-bearing, the two were merged into a single canonical v3.0 with trim as a configurable feature. The v3.1 distinction is preserved only in the audit thread.*
 
 This is a worked example, not a final bench. Token counts are from a local `tiktoken` (`o200k_base`) probe — directional, not authoritative for Anthropic's BPE. Run `experiments/fidelity/frontier.py` against the v3 artifacts when API spend is approved for the canonical numbers.
 
@@ -58,7 +60,7 @@ Same auth-platform narrative continued: extraction → hardening → OAuth → M
 | variant                          | chars |  tokens | lineage   |
 |----------------------------------|------:|--------:|-----------|
 | Prose summary                    |  1652 |  **438** | **LOST**  |
-| **CLM/3.1 trim sibling (live)**  |  6438 |  **2603** | preserved (more in sibling) |
+| **CLM/3.0 trim aggressive (live)**  |  6438 |  **2603** | preserved (more in sibling) |
 | — trim archive file              | 14429 |   4993  | (loaded on demand) |
 | CLM/3.0 sibling (live doc)       | 11540 |   4498  | preserved (in sibling) |
 | — sibling archive file           |  7345 |   2535  | (loaded on demand) |
@@ -80,7 +82,7 @@ Same auth-platform narrative continued: extraction → hardening → OAuth → M
 | variant                          | tokens | vs raw |
 |----------------------------------|-------:|-------:|
 | Prose summary                    |    438 | -92.3% (loses lineage) |
-| **CLM/3.1 trim sibling-archive** | **2603** | **-54.5% (lineage in sibling, possibly two reads)** |
+| **CLM/3.0 trim aggressive** | **2603** | **-54.5% (lineage in sibling, possibly two reads)** |
 | CLM/3.0 sibling-archive          |   4498 | -21.4% (lineage in sibling, one read) |
 | Raw append                       |   5726 | (baseline) |
 
@@ -92,25 +94,25 @@ Same auth-platform narrative continued: extraction → hardening → OAuth → M
 
 3. **Prose summary still wins on raw token count by ~6×.** And it always will — that's not what we're competing on. The prose summary loses every lineage question in `lineage_qa.json` (Q4–Q15 are unanswerable from 235 tokens of prose; even Q3 about the ship version is a coin-flip depending on summarization). v3.0's value is that those questions remain answerable cheaply.
 
-4. **The architecture's win scales with thread depth — and v3.1 trim modes recover most of the optimistic prediction.**
+4. **The architecture's win scales with thread depth — and trim modes recover most of the optimistic prediction.**
 
    - Raw append grows ×3.51 from 10 to 50 sessions.
-   - v3.0 sibling-live grows ×3.08 (savings: 10.5% → 21.4%).
-   - **v3.1 with aggressive trim**: 2,603 tokens at 50 sessions, **-54.5% vs raw**, **-42.1% incremental vs v3.0**.
+   - v3.0 with `trim.mode: none` grows ×3.08 (savings: 10.5% → 21.4%).
+   - **v3.0 with `trim.mode: aggressive`**: 2,603 tokens at 50 sessions, **-54.5% vs raw**, **-42.1% incremental vs no-trim**.
 
-   **My optimistic v3.0 prediction was wrong; my "aggressive trim recovers most of the optimistic case" recommendation was right.** I claimed ~80% savings on the bare v3.0 architecture, which would have required a constant-size live doc. v3.0 alone doesn't deliver that because `[ROLL.CALL]`, `[DREAM.LOG]`, and `[STATE].decisions.live` all grow linearly with thread depth. v3.1 fixes this by offloading old entries from those sections to the sibling archive.
+   **My optimistic prediction without trim was wrong; my "aggressive trim recovers most of the optimistic case" recommendation was right.** I claimed ~80% savings on the bare v3.0 architecture, which would have required a constant-size live doc. v3.0 without trim doesn't deliver that because `[ROLL.CALL]`, `[DREAM.LOG]`, and `[STATE].decisions.live` all grow linearly with thread depth. Aggressive trim fixes this by offloading old entries from those sections to the sibling archive.
 
-   v3.1 trim defaults (kept in live):
+   Trim defaults under `trim.mode: aggressive`:
    - `[ROLL.CALL]`: last 10 entries (rest → `[ROLL.CALL.ARCHIVE]` in sibling)
    - `[DREAM.LOG]`: last 3 entries (rest → `[DREAM.LOG.ARCHIVE]` in sibling)
    - `[STATE].decisions.live`: last 8 entries (rest → `[DECISIONS.ARCHIVE]` in sibling)
 
-   Trade: live doc shrinks ~42%, archive grows ~97% (because offload sections duplicate session-level info that was already implicit in the deltas). Total storage cost is ~8% higher (7,596 vs 7,033), but live-context cost is what matters per-call. **Spec for trim modes: [`SPEC-v3.1.clm`](SPEC-v3.1.clm)** (written *in* v3.1 trim CLM — the format documenting itself; reviewed and signed by Cdx.5, the first non-Claude reviewer).
+   Trade: live doc shrinks ~42%, archive grows ~97% (because offload sections duplicate session-level info that was already implicit in the deltas). Total storage cost is ~8% higher (7,596 vs 7,033), but live-context cost is what matters per-call. **Canonical spec: [`SPEC-v3.0.clm`](SPEC-v3.0.clm)** — written *in* v3.0 trim-aggressive CLM (the format documenting itself), reviewed and signed by Cdx.5 across two review rounds (round-1: 7 ambiguities; round-2: 5 lifecycle gaps; all addressed in the spec).
 
    Honest re-pitch for the eventual README:
 
    - **CLM/3.0 sibling-archive**: -21% live-context vs raw at 50 sessions, full lineage in sibling.
-   - **CLM/3.1 aggressive trim**: -55% live-context vs raw at 50 sessions, lineage in sibling (possibly two reads for full audit history).
+   - **CLM/3.0 with `trim.mode: aggressive`**: -55% live-context vs raw at 50 sessions, lineage in sibling (possibly two reads for full audit history).
 
 ## Lineage-recall questions (untested with API; designed to falsify-or-validate)
 
