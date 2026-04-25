@@ -32,10 +32,12 @@ VARIANTS_10 = [
 ]
 
 VARIANTS_50 = [
-    ("Raw append (CLM/2.1)",       "raw-append-50.clm"),
-    ("CLM/3.0 sibling (live)",     "dreamed-sibling-50.clm"),
-    ("  + sibling archive file",   "dreamed-sibling-50.archive.clm"),
-    ("Prose summary",              "prose-summary-50.md"),
+    ("Raw append (CLM/2.1)",          "raw-append-50.clm"),
+    ("CLM/3.0 sibling (live)",        "dreamed-sibling-50.clm"),
+    ("  + sibling archive file",      "dreamed-sibling-50.archive.clm"),
+    ("CLM/3.1 trim sibling (live)",   "dreamed-sibling-50-trim.clm"),
+    ("  + trim archive file",         "dreamed-sibling-50-trim.archive.clm"),
+    ("Prose summary",                 "prose-summary-50.md"),
 ]
 
 
@@ -63,22 +65,40 @@ def print_table(title: str, rows: list[tuple[str, int, int]]) -> None:
 def deltas(rows: list[tuple[str, int, int]], depth: int) -> None:
     raw = next(t for label, _, t in rows if label.startswith("Raw"))
     sibling_live = next(t for label, _, t in rows if label == "CLM/3.0 sibling (live)")
-    sibling_archive = next(t for label, _, t in rows if "archive file" in label)
+    sibling_archive_label = "  + sibling archive file"
+    sibling_archive = next(
+        (t for label, _, t in rows if label == sibling_archive_label), None
+    )
     summary = next(t for label, _, t in rows if label.startswith("Prose"))
-    sibling_total = sibling_live + sibling_archive
+
+    trim_live = next(
+        (t for label, _, t in rows if label == "CLM/3.1 trim sibling (live)"), None
+    )
+    trim_archive = next(
+        (t for label, _, t in rows if label == "  + trim archive file"), None
+    )
 
     print(f"\n--- live-context cost @ {depth} sessions ---")
     print(f"  Prose summary (lossy):          {summary:>5} tokens")
-    print(f"  CLM/3.0 sibling (live doc):     {sibling_live:>5} tokens")
+    if trim_live is not None:
+        print(f"  CLM/3.1 trim sibling (live):    {trim_live:>5} tokens")
+    print(f"  CLM/3.0 sibling (live):         {sibling_live:>5} tokens")
     print(f"  Raw append:                     {raw:>5} tokens")
-    print(f"  CLM/3.0 sibling (live+archive): {sibling_total:>5} tokens (archive loaded on demand)")
+    if sibling_archive is not None:
+        print(f"  CLM/3.0 sibling (live+archive): {sibling_live + sibling_archive:>5} tokens (archive loaded on demand)")
+    if trim_live is not None and trim_archive is not None:
+        print(f"  CLM/3.1 trim (live+archive):    {trim_live + trim_archive:>5} tokens (archive loaded on demand)")
 
+    print()
     if sibling_live < raw:
         pct = (raw - sibling_live) / raw * 100
-        print(f"\n  v3.0 sibling-live vs raw append: -{pct:.1f}% live-context tokens (lineage preserved in sibling)")
-    elif sibling_live > raw:
-        pct = (sibling_live - raw) / raw * 100
-        print(f"\n  v3.0 sibling-live vs raw append: +{pct:.1f}% (architecture loses at this depth)")
+        print(f"  v3.0 sibling-live vs raw append: -{pct:.1f}%")
+    if trim_live is not None and trim_live < raw:
+        pct = (raw - trim_live) / raw * 100
+        print(f"  v3.1 trim-live   vs raw append: -{pct:.1f}%")
+    if trim_live is not None and trim_live < sibling_live:
+        pct = (sibling_live - trim_live) / sibling_live * 100
+        print(f"  v3.1 trim-live   vs v3.0 live:  -{pct:.1f}%  (the trim mode's incremental win)")
 
 
 def main() -> None:
@@ -96,13 +116,20 @@ def main() -> None:
     raw_50 = next(t for label, _, t in rows50 if label.startswith("Raw"))
     live_10 = next(t for label, _, t in rows10 if label == "CLM/3.0 sibling (live)")
     live_50 = next(t for label, _, t in rows50 if label == "CLM/3.0 sibling (live)")
+    trim_50 = next(
+        (t for label, _, t in rows50 if label == "CLM/3.1 trim sibling (live)"), None
+    )
 
     print("\n=== scaling ===")
     print(f"  Raw append:           10 sessions = {raw_10:>5} tokens   →   50 sessions = {raw_50:>5} tokens   (×{raw_50/raw_10:.2f})")
     print(f"  CLM/3.0 sibling-live: 10 sessions = {live_10:>5} tokens   →   50 sessions = {live_50:>5} tokens   (×{live_50/live_10:.2f})")
+    if trim_50 is not None:
+        print(f"  CLM/3.1 trim-live:                                       50 sessions = {trim_50:>5} tokens")
     print()
-    print(f"  Architecture's claim: live doc grows slower than raw because archive offloads.")
-    print(f"  Observation: raw growth ratio = {raw_50/raw_10:.2f}, v3.0 live growth ratio = {live_50/live_10:.2f}.")
+    print(f"  Raw growth ratio: ×{raw_50/raw_10:.2f}")
+    print(f"  v3.0 growth ratio: ×{live_50/live_10:.2f}")
+    if trim_50 is not None:
+        print(f"  v3.1 trim absolute @ 50: {trim_50} tokens ({(raw_50 - trim_50) / raw_50 * 100:.1f}% smaller than raw)")
 
     print()
     print("Caveat: o200k_base differs from Anthropic's BPE by ~5-15% in absolute count.")

@@ -230,8 +230,19 @@ def render_raw_append(events: List[Event]) -> str:
     return "\n".join(out) + "\n"
 
 
-def render_dreamed(events: List[Event], dream_every: int = 5) -> tuple[str, str]:
+def render_dreamed(
+    events: List[Event],
+    dream_every: int = 5,
+    trim_mode: str = "none",
+    roll_call_keep: int = 10,
+    dream_log_keep: int = 3,
+    decisions_live_keep: int = 8,
+) -> tuple[str, str]:
     """Returns (live_doc, archive_doc).
+
+    trim_mode:
+      "none" — no trimming; full [ROLL.CALL], [DREAM.LOG], decisions.live in live doc.
+      "aggressive" — keep only `*_keep` most recent in live; older entries move to archive.
 
     Dream passes happen at sessions [5, 10, 15, ..., 45]. The last dream consolidates
     sessions 41-45 into [STATE]; sessions 46-50 are active deltas.
@@ -262,6 +273,14 @@ def render_dreamed(events: List[Event], dream_every: int = 5) -> tuple[str, str]
         if e.decision_id not in reverted_ids and e.decision_id not in superseded_ids
     ]
 
+    # Decide how many decisions to render in [STATE]
+    if trim_mode == "aggressive":
+        live_visible = live_archived[-decisions_live_keep:]
+        live_offloaded = live_archived[:-decisions_live_keep] if len(live_archived) > decisions_live_keep else []
+    else:
+        live_visible = live_archived[-15:]
+        live_offloaded = []  # in non-trim mode, full list still rendered as visible (15 cap was display-only)
+
     state_lines = [
         "[STATE]",
         f"  ;; consolidated by CLd.Ops4.7 during dream pass over sessions 1-{last_dream}",
@@ -272,9 +291,11 @@ def render_dreamed(events: List[Event], dream_every: int = 5) -> tuple[str, str]
         f"  shipped.versions: [v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0]",
         f"  decisions.live ({len(live_archived)} of {len(archived_events)} archived):",
     ]
-    for e in live_archived[-15:]:  # show last 15 to keep [STATE] compact
+    for e in live_visible:
         state_lines.append(f"    d{e.decision_id}: {_short(e.decision_text)} [session {e.session}]")
-    if len(live_archived) > 15:
+    if trim_mode == "aggressive" and live_offloaded:
+        state_lines.append(f"    (oldest {len(live_offloaded)} live decisions: see [DECISIONS.ARCHIVE] in sibling)")
+    elif trim_mode == "none" and len(live_archived) > 15:
         state_lines.insert(-15, f"    (showing most recent 15 of {len(live_archived)} live decisions; full list in archive)")
     reverted_str = ", ".join(f"d{i}" for i in sorted(reverted_ids)) or "(none)"
     superseded_str = ", ".join(f"d{i}" for i in sorted(superseded_ids)) or "(none)"
@@ -300,31 +321,54 @@ def render_dreamed(events: List[Event], dream_every: int = 5) -> tuple[str, str]
         block += [";;", ""]
         delta_blocks.append("\n".join(block))
 
-    # Roll call (full)
-    roll_call_lines = ["[ROLL.CALL]"]
+    # Roll call: full list of session author lines + dream-pass signatures
+    n_dreams = last_dream // dream_every
+    full_roll_call_entries: list[str] = []
     for e in events:
-        roll_call_lines.append(
+        full_roll_call_entries.append(
             f"  {e.author} · {e.date} · \"session {e.session}: {_short(e.decision_text)}\""
         )
-    # Add dream-pass signatures
-    n_dreams = last_dream // dream_every
     for d in range(1, n_dreams + 1):
         dream_session = d * dream_every
-        roll_call_lines.append(
+        full_roll_call_entries.append(
             f"  CLd.Ops4.7 · {date_for_session(dream_session)} · "
             f"\"dream pass {d}: consolidated sessions {(d-1)*dream_every + 1}-{dream_session}\""
         )
+
+    if trim_mode == "aggressive":
+        rc_visible = full_roll_call_entries[-roll_call_keep:]
+        rc_offloaded = full_roll_call_entries[:-roll_call_keep] if len(full_roll_call_entries) > roll_call_keep else []
+    else:
+        rc_visible = full_roll_call_entries
+        rc_offloaded = []
+
+    roll_call_lines = ["[ROLL.CALL]"]
+    if trim_mode == "aggressive" and rc_offloaded:
+        roll_call_lines.append(f"  ;; (oldest {len(rc_offloaded)} entries offloaded to [ROLL.CALL.ARCHIVE] in sibling)")
+    roll_call_lines.extend(rc_visible)
     roll_call_lines += [";;", ""]
 
-    # Dream log
-    dream_log_lines = ["[DREAM.LOG]"]
+    # Dream log: full + trim
+    full_dream_log_entries: list[str] = []
     for d in range(1, n_dreams + 1):
         dream_session = d * dream_every
-        dream_log_lines.append(
+        full_dream_log_entries.append(
             f"  {date_for_session(dream_session)} | CLd.Ops4.7 | "
             f"consolidated {dream_every} deltas (sessions {(d-1)*dream_every + 1}-{dream_session}) | "
             f"sibling | wrote new [STATE]"
         )
+
+    if trim_mode == "aggressive":
+        dl_visible = full_dream_log_entries[-dream_log_keep:]
+        dl_offloaded = full_dream_log_entries[:-dream_log_keep] if len(full_dream_log_entries) > dream_log_keep else []
+    else:
+        dl_visible = full_dream_log_entries
+        dl_offloaded = []
+
+    dream_log_lines = ["[DREAM.LOG]"]
+    if trim_mode == "aggressive" and dl_offloaded:
+        dream_log_lines.append(f"  ;; (oldest {len(dl_offloaded)} entries offloaded to [DREAM.LOG.ARCHIVE] in sibling)")
+    dream_log_lines.extend(dl_visible)
     dream_log_lines += [";;", ""]
 
     for_you = [
@@ -347,13 +391,17 @@ def render_dreamed(events: List[Event], dream_every: int = 5) -> tuple[str, str]
         dream_session = d * dream_every
         closer.append(f";;; — CLd.Ops4.7 | dream.pass.{d} | {date_for_session(dream_session)}")
 
+    title_suffix = " — aggressive trim" if trim_mode == "aggressive" else ""
+    archive_filename = f"dreamed-sibling-50{'-trim' if trim_mode == 'aggressive' else ''}.archive.clm"
+
     live_doc = "\n".join(
         [
-            ";;; CLM/3.0 — handoff thread (dreamed every 5 sessions, sibling archive)",
+            f";;; CLM/3.{ '1' if trim_mode == 'aggressive' else '0'} — handoff thread (dreamed every 5 sessions, sibling archive){title_suffix}",
             ";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50",
             f";;; last.dream: {date_for_session(last_dream)} evening",
             f";;; active.deltas: {len(active_events)} | archived.deltas: {len(archived_events)}",
-            ";;; archive.mode: sibling | archive.file: dreamed-sibling-50.archive.clm",
+            f";;; archive.mode: sibling | archive.file: {archive_filename}",
+            f";;; trim.mode: {trim_mode}",
             ";;; ---",
             "",
             *for_you,
@@ -390,6 +438,33 @@ def render_dreamed(events: List[Event], dream_every: int = 5) -> tuple[str, str]
         for f in e.files_added:
             archive_lines.append(f"  add.file: {f}")
         archive_lines += [";;", ""]
+
+    # Trim-mode archive sections: roll-call, dream-log, decisions overflow
+    if trim_mode == "aggressive":
+        if rc_offloaded:
+            archive_lines += [
+                "[ROLL.CALL.ARCHIVE]",
+                "  ;; older roll-call entries offloaded from live doc",
+                *rc_offloaded,
+                ";;",
+                "",
+            ]
+        if dl_offloaded:
+            archive_lines += [
+                "[DREAM.LOG.ARCHIVE]",
+                "  ;; older dream-log entries offloaded from live doc",
+                *dl_offloaded,
+                ";;",
+                "",
+            ]
+        if live_offloaded:
+            archive_lines += [
+                "[DECISIONS.ARCHIVE]",
+                "  ;; older live-decisions offloaded from [STATE].decisions.live",
+            ]
+            for e in live_offloaded:
+                archive_lines.append(f"  d{e.decision_id}: {_short(e.decision_text)} [session {e.session}]")
+            archive_lines += [";;", ""]
 
     archive_lines += [
         ";;; EOF | archive",
@@ -444,19 +519,28 @@ def main() -> None:
     assert len(events) == 50, f"expected 50 events, got {len(events)}"
 
     raw = render_raw_append(events)
-    live, archive = render_dreamed(events, dream_every=5)
+    live, archive = render_dreamed(events, dream_every=5, trim_mode="none")
+    live_trim, archive_trim = render_dreamed(events, dream_every=5, trim_mode="aggressive")
     prose = render_prose_summary(events)
 
     (HERE / "raw-append-50.clm").write_text(raw)
     (HERE / "dreamed-sibling-50.clm").write_text(live)
     (HERE / "dreamed-sibling-50.archive.clm").write_text(archive)
+    (HERE / "dreamed-sibling-50-trim.clm").write_text(live_trim)
+    (HERE / "dreamed-sibling-50-trim.archive.clm").write_text(archive_trim)
     (HERE / "prose-summary-50.md").write_text(prose)
 
     print("wrote:")
-    for name in ["raw-append-50.clm", "dreamed-sibling-50.clm",
-                 "dreamed-sibling-50.archive.clm", "prose-summary-50.md"]:
+    for name in [
+        "raw-append-50.clm",
+        "dreamed-sibling-50.clm",
+        "dreamed-sibling-50.archive.clm",
+        "dreamed-sibling-50-trim.clm",
+        "dreamed-sibling-50-trim.archive.clm",
+        "prose-summary-50.md",
+    ]:
         path = HERE / name
-        print(f"  {name:<40}{path.stat().st_size:>8} bytes")
+        print(f"  {name:<42}{path.stat().st_size:>8} bytes")
 
 
 if __name__ == "__main__":

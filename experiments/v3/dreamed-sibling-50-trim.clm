@@ -1,9 +1,9 @@
-;;; CLM/3.0 — handoff thread (dreamed every 5 sessions, sibling archive)
+;;; CLM/3.1 — handoff thread (dreamed every 5 sessions, sibling archive) — aggressive trim
 ;;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50
 ;;; last.dream: 2026-06-05 evening
 ;;; active.deltas: 5 | archived.deltas: 45
-;;; archive.mode: sibling | archive.file: dreamed-sibling-50.archive.clm
-;;; trim.mode: none
+;;; archive.mode: sibling | archive.file: dreamed-sibling-50-trim.archive.clm
+;;; trim.mode: aggressive
 ;;; ---
 
 [FOR.YOU]
@@ -21,14 +21,6 @@
   status: in-progress (latest session: 50)
   shipped.versions: [v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0]
   decisions.live (40 of 45 archived):
-    (showing most recent 15 of 40 live decisions; full list in archive)
-    d31: MFA: TOTP via authenticator apps (RFC 6238) [session 31]
-    d32: backup codes: 10 single-use codes per user [session 32]
-    d33: MFA enrollment flow: scan QR, enter 6-digit code twice [session 33]
-    d34: recovery flow: backup code OR support ticket (no SMS) [session 34]
-    d35: decline SMS MFA (security risk per NIST 800-63B) [session 35]
-    d36: MFA-required policy configurable per role [session 36]
-    d37: rate-limit MFA attempts: 5 attempts then 15-min lockout [session 37]
     d38: audit log MFA enable/disable events [session 38]
     d39: WebAuthn passkey support deferred to v0.7 [session 39]
     d40: ship MFA as v0.6.0 [session 40]
@@ -37,6 +29,7 @@
     d43: backport JWT migration to v0.6.x [session 43]
     d44: performance: middleware chain p95 800us -> 120us [session 44]
     d45: memory: session cache pool sync.Pool [session 45]
+    (oldest 32 live decisions: see [DECISIONS.ARCHIVE] in sibling)
   decisions.reverted: [d4, d14, d23, d24]
   decisions.superseded: [d3]
 ;;
@@ -72,55 +65,7 @@
 ;;
 
 [ROLL.CALL]
-  CLd.Snt4.6 · 2026-04-21 · "session 1: relocate auth from web/server.go -> internal/auth/middlewar…"
-  CLd.Ops4.6 · 2026-04-22 · "session 2: rename AuthCheck -> RequireAuth (matches new convention)"
-  CLd.Snt4.5 · 2026-04-23 · "session 3: rate-limiter NOT refactored in this scope (out-of-scope)"
-  CLd.Ops4.7 · 2026-04-24 · "session 4: legacy session-cookie path PRESERVED in middleware (deferre…"
-  Cdx.5.4 · 2026-04-25 · "session 5: investigate CI flake before merge"
-  Cdx.5.4-codex · 2026-04-26 · "session 6: fix flake by isolating test fixtures"
-  GPT.5.4 · 2026-04-27 · "session 7: delete legacy session-cookie path under build tag"
-  Gem.2.5 · 2026-04-28 · "session 8: rate-limiter in NEW package internal/ratelimit, not in auth"
-  Lla.4 · 2026-04-29 · "session 9: middleware composition via Chain(...) helper"
-  Kmi.K2 · 2026-04-30 · "session 10: ship as v0.4.0"
-  CLd.Snt4.6 · 2026-05-01 · "session 11: fix CSRF token regression in /api/login"
-  CLd.Ops4.6 · 2026-05-02 · "session 12: expand session timeout config to per-route"
-  CLd.Snt4.5 · 2026-05-03 · "session 13: add audit log for failed auth attempts"
-  CLd.Ops4.7 · 2026-05-04 · "session 14: rate-limit threshold reduced 100/min -> 60/min"
-  Cdx.5.4 · 2026-05-05 · "session 15: revert rate-limit threshold change (false positives)"
-  Cdx.5.4-codex · 2026-05-06 · "session 16: structured logging for auth path (zerolog)"
-  GPT.5.4 · 2026-05-07 · "session 17: benchmark: middleware chain hot-path latency"
-  Gem.2.5 · 2026-05-08 · "session 18: cache RequireAuth result for duration of request"
-  Lla.4 · 2026-05-09 · "session 19: add metrics: auth_success_total, auth_failure_total"
-  Kmi.K2 · 2026-05-10 · "session 20: post-launch bugs closed; ship v0.4.1"
-  CLd.Snt4.6 · 2026-05-11 · "session 21: add OAuth provider registry (Google, GitHub, GitLab)"
-  CLd.Ops4.6 · 2026-05-12 · "session 22: OAuth callback under /auth/oauth/<provider>/callback"
-  CLd.Snt4.5 · 2026-05-13 · "session 23: session token: JWT signed RS256 (was: opaque random)"
-  CLd.Ops4.7 · 2026-05-14 · "session 24: revert RS256: use HS512 (operational simplicity)"
-  Cdx.5.4 · 2026-05-15 · "session 25: OAuth state param: encrypted user-intent payload"
-  Cdx.5.4-codex · 2026-05-16 · "session 26: rate-limit OAuth callbacks separately (5/min/IP)"
-  GPT.5.4 · 2026-05-17 · "session 27: add provider-specific scope mapping"
-  Gem.2.5 · 2026-05-18 · "session 28: integration tests against mock OAuth servers"
-  Lla.4 · 2026-05-19 · "session 29: documentation: OAuth provider onboarding"
-  Kmi.K2 · 2026-05-20 · "session 30: ship OAuth as v0.5.0"
-  CLd.Snt4.6 · 2026-05-21 · "session 31: MFA: TOTP via authenticator apps (RFC 6238)"
-  CLd.Ops4.6 · 2026-05-22 · "session 32: backup codes: 10 single-use codes per user"
-  CLd.Snt4.5 · 2026-05-23 · "session 33: MFA enrollment flow: scan QR, enter 6-digit code twice"
-  CLd.Ops4.7 · 2026-05-24 · "session 34: recovery flow: backup code OR support ticket (no SMS)"
-  Cdx.5.4 · 2026-05-25 · "session 35: decline SMS MFA (security risk per NIST 800-63B)"
-  Cdx.5.4-codex · 2026-05-26 · "session 36: MFA-required policy configurable per role"
-  GPT.5.4 · 2026-05-27 · "session 37: rate-limit MFA attempts: 5 attempts then 15-min lockout"
-  Gem.2.5 · 2026-05-28 · "session 38: audit log MFA enable/disable events"
-  Lla.4 · 2026-05-29 · "session 39: WebAuthn passkey support deferred to v0.7"
-  Kmi.K2 · 2026-05-30 · "session 40: ship MFA as v0.6.0"
-  CLd.Snt4.6 · 2026-06-01 · "session 41: third-party security audit by Trail of Bits"
-  CLd.Ops4.6 · 2026-06-02 · "session 42: audit findings: CVE-class issue in JWT verify (HS512 -> RS2…"
-  CLd.Snt4.5 · 2026-06-03 · "session 43: backport JWT migration to v0.6.x"
-  CLd.Ops4.7 · 2026-06-04 · "session 44: performance: middleware chain p95 800us -> 120us"
-  Cdx.5.4 · 2026-06-05 · "session 45: memory: session cache pool sync.Pool"
-  Cdx.5.4-codex · 2026-06-06 · "session 46: compile flags: -trimpath, -buildvcs=false"
-  GPT.5.4 · 2026-06-07 · "session 47: supply chain: govulncheck in CI"
-  Gem.2.5 · 2026-06-08 · "session 48: OWASP top 10 checklist: pass with one note (rate-limit on /…"
-  Lla.4 · 2026-06-09 · "session 49: audit closed; CVE patched in v0.6.1"
+  ;; (oldest 49 entries offloaded to [ROLL.CALL.ARCHIVE] in sibling)
   Kmi.K2 · 2026-06-10 · "session 50: ship v0.7.0 with WebAuthn passkey"
   CLd.Ops4.7 · 2026-04-25 · "dream pass 1: consolidated sessions 1-5"
   CLd.Ops4.7 · 2026-04-30 · "dream pass 2: consolidated sessions 6-10"
@@ -134,12 +79,7 @@
 ;;
 
 [DREAM.LOG]
-  2026-04-25 | CLd.Ops4.7 | consolidated 5 deltas (sessions 1-5) | sibling | wrote new [STATE]
-  2026-04-30 | CLd.Ops4.7 | consolidated 5 deltas (sessions 6-10) | sibling | wrote new [STATE]
-  2026-05-05 | CLd.Ops4.7 | consolidated 5 deltas (sessions 11-15) | sibling | wrote new [STATE]
-  2026-05-10 | CLd.Ops4.7 | consolidated 5 deltas (sessions 16-20) | sibling | wrote new [STATE]
-  2026-05-15 | CLd.Ops4.7 | consolidated 5 deltas (sessions 21-25) | sibling | wrote new [STATE]
-  2026-05-20 | CLd.Ops4.7 | consolidated 5 deltas (sessions 26-30) | sibling | wrote new [STATE]
+  ;; (oldest 6 entries offloaded to [DREAM.LOG.ARCHIVE] in sibling)
   2026-05-25 | CLd.Ops4.7 | consolidated 5 deltas (sessions 31-35) | sibling | wrote new [STATE]
   2026-05-30 | CLd.Ops4.7 | consolidated 5 deltas (sessions 36-40) | sibling | wrote new [STATE]
   2026-06-05 | CLd.Ops4.7 | consolidated 5 deltas (sessions 41-45) | sibling | wrote new [STATE]
