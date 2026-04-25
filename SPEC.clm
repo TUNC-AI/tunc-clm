@@ -164,7 +164,7 @@
 
   decisions.live.delimitation:
     begins.at: line matching ^\s*decisions\.live[:( ] inside [STATE]
-    contains: indented entries (at least 4 spaces deeper than the `decisions.live:` line itself)
+    contains: indented entries (deeper than the `decisions.live:` line itself; +2 in canonical examples)
     ends.at: next un-indented key at same indentation as `decisions.live:` OR section close `;;`
     sentinel.placement: BEFORE the kept entries (same rule as [ROLL.CALL] / [DREAM.LOG] sentinels)
       ;; ← addresses Cdx.5 round-3 blocker 3: sentinel placement consistent across all trimmed sub-blocks

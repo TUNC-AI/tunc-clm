@@ -521,7 +521,6 @@ def render_prose_summary(events: List[Event]) -> str:
     verbatim for 200-session comparisons, making the bench non-comparable).
     """
     depth = len(events)
-    cycles = max(1, depth // 50)
     sessions_per_phase = 10
     phase_names = [
         "auth middleware extraction",
@@ -534,7 +533,11 @@ def render_prose_summary(events: List[Event]) -> str:
     # v0.6.1 (CVE patch) and v0.7.0 (WebAuthn). Codex round-5 P3 caught that
     # slicing by phase count (5) dropped v0.7.0 from the summary.
     versions_per_cycle = ["v0.4.0", "v0.4.1", "v0.5.0", "v0.6.0", "v0.6.1+v0.7.0"]
-    phases_in_thread = min((depth + sessions_per_phase - 1) // sessions_per_phase, len(phase_names) * cycles)
+    # Codex round-6 P3: handle partial cycles. cycles = ceil(depth / 50) so depth=75 covers
+    # 1.5 cycles (phases 1-5 then 1-2 of cycle 2). Phases-in-thread is the actual count
+    # of (cycle, phase) pairs we'll render.
+    phases_in_thread = (depth + sessions_per_phase - 1) // sessions_per_phase
+    cycles = max(1, (phases_in_thread + len(phase_names) - 1) // len(phase_names))
 
     last_event = events[-1]
     versions_shipped = versions_per_cycle[: min(len(versions_per_cycle), phases_in_thread)]

@@ -94,6 +94,10 @@ pub enum ValidationError {
     /// section, indicating overflow has occurred), but the resolved archive.path file does
     /// not exist on disk. Per spec: state.C requires the archive file to exist.
     ArchiveFileMissingInStateC { resolved_path: PathBuf },
+    /// The archive file exists but doesn't contain any trim ARCHIVE sections
+    /// ([ROLL.CALL.ARCHIVE] / [DREAM.LOG.ARCHIVE] / [DECISIONS.ARCHIVE]) — likely a stale
+    /// or wrong file. Spec's state.C guarantee is stronger than file existence alone.
+    ArchiveFileWrongShapeInStateC { resolved_path: PathBuf },
 }
 
 impl fmt::Display for ValidationError {
@@ -130,6 +134,10 @@ impl fmt::Display for ValidationError {
             ArchiveFileMissingInStateC { resolved_path } => write!(
                 f,
                 "doc is in state.C (overflow occurred — sentinel present) but archive.path resolves to {resolved_path:?} which does not exist"
+            ),
+            ArchiveFileWrongShapeInStateC { resolved_path } => write!(
+                f,
+                "archive.path resolves to {resolved_path:?} but the file contains no trim ARCHIVE sections ([ROLL.CALL.ARCHIVE] / [DREAM.LOG.ARCHIVE] / [DECISIONS.ARCHIVE]); state.C requires a real trim archive"
             ),
         }
     }
@@ -290,18 +298,51 @@ pub fn validate_v3_with_filesystem(doc: &Document, base_dir: &Path) -> Validatio
         return report;
     };
     let resolved = base_dir.join(&archive_path_str);
-    // Per spec the archive must be a *file*; .exists() returns true for directories,
-    // so a stray `archive.path: .` would otherwise validate clean.
-    if resolved.is_file() {
+    // Per spec the archive must be a *file*; .exists() returns true for directories.
+    let is_state_c_doc = is_state_c(doc);
+    if !resolved.is_file() {
+        if is_state_c_doc {
+            report.errors.push(ValidationError::ArchiveFileMissingInStateC { resolved_path: resolved });
+        } else {
+            report
+                .warnings
+                .push(ValidationWarning::ArchiveFileNotYetCreatedInStateB { resolved_path: resolved });
+        }
         return report;
     }
 
-    if is_state_c(doc) {
-        report.errors.push(ValidationError::ArchiveFileMissingInStateC { resolved_path: resolved });
-    } else {
-        report
-            .warnings
-            .push(ValidationWarning::ArchiveFileNotYetCreatedInStateB { resolved_path: resolved });
+    // The file exists. For state.C, that's not enough — it MUST be a trim archive
+    // (i.e., contain at least one of [ROLL.CALL.ARCHIVE], [DREAM.LOG.ARCHIVE],
+    // [DECISIONS.ARCHIVE]). Otherwise a stale or wrong file (README.md, an unrelated
+    // archive) would validate clean even though the offloaded history is unrecoverable.
+    if is_state_c_doc {
+        match std::fs::read_to_string(&resolved) {
+            Ok(text) => match Document::parse(&text) {
+                Ok(archive_doc) => {
+                    let has_trim_archive_section = archive_doc.sections.iter().any(|(s, _)| {
+                        matches!(
+                            s.name.as_str(),
+                            "ROLL.CALL.ARCHIVE" | "DREAM.LOG.ARCHIVE" | "DECISIONS.ARCHIVE"
+                        )
+                    });
+                    if !has_trim_archive_section {
+                        report.errors.push(ValidationError::ArchiveFileWrongShapeInStateC {
+                            resolved_path: resolved,
+                        });
+                    }
+                }
+                Err(_) => {
+                    report.errors.push(ValidationError::ArchiveFileWrongShapeInStateC {
+                        resolved_path: resolved,
+                    });
+                }
+            },
+            Err(_) => {
+                report.errors.push(ValidationError::ArchiveFileMissingInStateC {
+                    resolved_path: resolved,
+                });
+            }
+        }
     }
 
     report
@@ -613,6 +654,13 @@ fn decisions_live_stats(state_body: &[String]) -> DecisionsLiveStats {
         if trimmed.is_empty() {
             continue;
         }
+        // Per SPEC.clm decisions.live.delimitation: entries are indented deeper than
+        // the `decisions.live:` header. Any line at or shallower than the header
+        // indent ends the block. (Spec originally said "at least 4 deeper" but the
+        // generated artifacts use +2; spec relaxed to "deeper" to match conventional
+        // CLM indentation. Codex round-6 P2: shallow-but-deeper-than-header lines
+        // are technically valid entries; truly malformed [STATE] keys would be at
+        // the same indent as decisions.live and break the block normally.)
         if leading <= block_indent {
             break;
         }
@@ -1104,6 +1152,44 @@ mod tests {
             "expected ArchiveFileNotYetCreatedInStateB warning; got: {:?}",
             report.warnings
         );
+    }
+
+    #[test]
+    fn archive_file_pointing_at_wrong_shape_errors_in_state_c() {
+        // Per Codex round-6 P1: archive existence isn't enough. State.C requires the
+        // archive file to actually contain trim ARCHIVE sections — a stray file like
+        // README.md (or any unrelated archive) should fail validation.
+        let tmp_dir = std::env::temp_dir();
+        let stale_path = tmp_dir.join("clm-test-stale-archive.clm");
+        std::fs::write(
+            &stale_path,
+            ";;; CLM/3.0 — not actually an archive\n;;; ---\n\n[META]\n  ;; nope\n;;\n\n;;; EOF | CLM/3.0\n",
+        )
+        .unwrap();
+
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | ",
+        );
+        text.push_str(&format!("archive.path: {}\n", stale_path.file_name().unwrap().to_string_lossy()));
+        text.push_str(";;; trim.config: roll_call=2, dream_log=3, decisions_live=8\n;;; ---\n\n");
+        text.push_str("[ROLL.CALL]\n");
+        text.push_str("  ;; (oldest 1 entries offloaded to [ROLL.CALL.ARCHIVE] in sibling)\n");
+        text.push_str("  CLd.Ops4.6 · 2026-04-07 · \"b\"\n");
+        text.push_str("  CLd.Snt4.5 · 2026-04-24 · \"c\"\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, &tmp_dir);
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::ArchiveFileWrongShapeInStateC { .. }
+            )),
+            "expected ArchiveFileWrongShapeInStateC for stale file; got: {:?}",
+            report.errors
+        );
+
+        let _ = std::fs::remove_file(&stale_path);
     }
 
     #[test]
