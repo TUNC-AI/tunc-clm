@@ -205,7 +205,10 @@ function isHeaderTerminator(line: string): boolean {
 
 function isCloserStart(line: string): boolean {
   if (!line.startsWith(";;;")) return false;
-  const after = line.slice(3).replace(/^[\t ]+/, "");
+  // Unicode-equivalent whitespace strip — Rust uses .trim_start() and Python .lstrip(),
+  // both of which handle full Unicode whitespace. Limiting to [\t ] would reject docs
+  // with NBSP (U+00A0) or other Unicode whitespace that the other implementations accept.
+  const after = line.slice(3).replace(/^\s+/, "");
   if (!after.startsWith("EOF")) return false;
   const rest = after.slice(3);
   if (rest.length === 0) return true;
@@ -220,11 +223,11 @@ function isBlank(line: string): boolean {
 }
 
 function isSectionClose(line: string): boolean {
-  return line.replace(/[\t ]+$/, "") === ";;";
+  return line.replace(/\s+$/, "") === ";;";
 }
 
 function parseSectionOpen(line: string): string | null {
-  const trimmed = line.replace(/[\t ]+$/, "");
+  const trimmed = line.replace(/\s+$/, "");
   // CLM/1.0: Unicode brackets
   if (trimmed.startsWith(SEC_OPEN) && trimmed.endsWith(SEC_CLOSE)) {
     return validateSectionName(trimmed.slice(SEC_OPEN.length, -SEC_CLOSE.length));

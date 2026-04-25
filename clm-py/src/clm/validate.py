@@ -705,21 +705,31 @@ def _well_formed_dream_log_line(line: str) -> bool:
     return _looks_like_iso_date(date_token)
 
 
+_ASCII_DIGITS = frozenset("0123456789")
+
+
+def _is_ascii_digit_run(s: str) -> bool:
+    """ASCII-digits-only check. Rust uses ``b.is_ascii_digit()`` and JS uses ``\\d``
+    (no ``u`` flag). Python's ``str.isdigit()`` accepts non-ASCII digits like Thai
+    ``\\u0e50`` and Arabic-Indic ``\\u0660`` — diverges from the other impls."""
+    return bool(s) and all(c in _ASCII_DIGITS for c in s)
+
+
 def _looks_like_iso_date(s: str) -> bool:
     if len(s) != 10:
         return False
     return (
-        s[0:4].isdigit()
+        _is_ascii_digit_run(s[0:4])
         and s[4] == "-"
-        and s[5:7].isdigit()
+        and _is_ascii_digit_run(s[5:7])
         and s[7] == "-"
-        and s[8:10].isdigit()
+        and _is_ascii_digit_run(s[8:10])
     )
 
 
 def _looks_like_decision_entry(line: str) -> bool:
     """`dN: text [session N]` shape — loose: just `d<digit>` prefix and `:` separator."""
-    if len(line) < 3 or line[0] != "d" or not line[1].isdigit():
+    if len(line) < 3 or line[0] != "d" or line[1] not in _ASCII_DIGITS:
         return False
     return ":" in line
 

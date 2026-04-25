@@ -432,6 +432,18 @@ def test_archive_doc_warnings_propagate_to_live_report(tmp_path: Path) -> None:
     )
 
 
+def test_iso_date_rejects_non_ascii_digits() -> None:
+    # Sonnet review I2: Python str.isdigit() accepts non-ASCII digits (Thai, Arabic-Indic).
+    # Rust b.is_ascii_digit() and JS \d (no u flag) only accept ASCII.
+    # Use the helper directly via imports to keep test surface tight.
+    from clm.validate import _looks_like_iso_date  # type: ignore[attr-defined]
+
+    assert _looks_like_iso_date("2026-04-25")
+    assert not _looks_like_iso_date("\u0e50\u0e50\u0e50\u0e50-\u0e50\u0e51-\u0e50\u0e51")  # Thai digits
+    assert not _looks_like_iso_date("\u0660\u0660\u0660\u0660-\u0660\u0661-\u0660\u0661")  # Arabic-Indic
+    assert not _looks_like_iso_date("notadate12")
+
+
 def test_archive_file_pointing_at_wrong_shape_errors_in_state_c(tmp_path: Path) -> None:
     stale_path = tmp_path / "stale.clm"
     stale_path.write_text(

@@ -65,4 +65,17 @@ describe("Document.parse + roundtrip", () => {
     const doc = Document.parse(text);
     expect(doc.toString()).toBe(text);
   });
+
+  // Sonnet review I1: JS used to strip only [\t ] from line ends, so a doc with
+  // Unicode trailing whitespace (NBSP, etc.) that Rust/Python accepted would
+  // fail JS parse. Now the regexes use \s for Unicode-equivalent whitespace.
+  it("accepts Unicode trailing whitespace on structural lines (parity with Rust/Python)", () => {
+    const NBSP = "\u00a0";
+    const text =
+      `;;; CLM/3.0 — test\n;;; test.clm\n;;;${NBSP}---\n\n` +
+      `[STATE]${NBSP}\n  ;; empty\n;;${NBSP}\n\n` +
+      `;;;${NBSP}EOF | CLM/3.0\n`;
+    const doc = Document.parse(text);
+    expect(doc.section("STATE")).toBeDefined();
+  });
 });

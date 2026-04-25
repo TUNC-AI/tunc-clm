@@ -303,8 +303,9 @@ function parseTrimConfig(
       });
       continue;
     }
-    const n = Number(v);
-    if (!Number.isInteger(n) || n < 0) {
+    // Strict integer check: reject "3.0", "3e0", "0x10", etc. that Number() would
+    // happily coerce. Rust's usize::parse and Python's int() both reject these.
+    if (!/^\d+$/.test(v)) {
       errors.push({
         kind: "invalid_trim_config_value",
         message: `trim.config[${JSON.stringify(k)}] = ${JSON.stringify(v)} is not a non-negative integer`,
@@ -312,6 +313,7 @@ function parseTrimConfig(
       });
       continue;
     }
+    const n = parseInt(v, 10);
     if (k === "roll_call") cfg.roll_call = n;
     else if (k === "dream_log") cfg.dream_log = n;
     else if (k === "decisions_live") cfg.decisions_live = n;
@@ -586,10 +588,13 @@ function parseDecisionsLiveHeaderParen(afterKey: string): number | undefined {
   let i = 0;
   if (tokens[i] === "last") i++;
   if (i + 2 >= tokens.length) return undefined;
-  const x = Number(tokens[i]);
+  const xStr = tokens[i]!;
   const ofKw = tokens[i + 1];
-  const y = Number(tokens[i + 2]);
-  if (!Number.isInteger(x) || !Number.isInteger(y) || ofKw !== "of") return undefined;
+  const yStr = tokens[i + 2]!;
+  // Strict integer check (Rust's usize::parse / Python's int()) — reject "2.0", "3e0", etc.
+  if (!/^\d+$/.test(xStr) || !/^\d+$/.test(yStr) || ofKw !== "of") return undefined;
+  const x = parseInt(xStr, 10);
+  const y = parseInt(yStr, 10);
   return y > x ? y - x : undefined;
 }
 

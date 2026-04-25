@@ -271,6 +271,44 @@ describe("validateV3 — quarantine", () => {
   });
 });
 
+describe("validateV3 — strict integer parsing (parity with Rust usize::parse)", () => {
+  it("trim.config rejects '3.0' (not an integer)", () => {
+    const text =
+      `;;; CLM/3.0 — test\n;;; test.clm\n` +
+      `;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n` +
+      `;;; trim.config: roll_call=3.0\n;;; ---\n\n` +
+      `[STATE]\n  ;; empty\n;;\n\n;;; EOF | CLM/3.0\n`;
+    const r = validateV3(Document.parse(text));
+    expect(hasError(r, "invalid_trim_config_value")).toBe(true);
+  });
+
+  it("trim.config rejects '3e0' (scientific)", () => {
+    const text =
+      `;;; CLM/3.0 — test\n;;; test.clm\n` +
+      `;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n` +
+      `;;; trim.config: roll_call=3e0\n;;; ---\n\n` +
+      `[STATE]\n  ;; empty\n;;\n\n;;; EOF | CLM/3.0\n`;
+    const r = validateV3(Document.parse(text));
+    expect(hasError(r, "invalid_trim_config_value")).toBe(true);
+  });
+
+  it("decisions.live header `(last 2.0 of 5.0 archived)` is rejected", () => {
+    const text =
+      `;;; CLM/3.0 — test\n;;; test.clm\n` +
+      `;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n` +
+      `;;; trim.config: roll_call=10, dream_log=3, decisions_live=2\n;;; ---\n\n` +
+      `[STATE]\n` +
+      `  decisions.live (last 2.0 of 5.0 archived):\n` +
+      `    d4: keep me [session 40]\n` +
+      `    d5: keep me too [session 50]\n` +
+      `;;\n\n;;; EOF | CLM/3.0\n`;
+    const r = validateV3(Document.parse(text));
+    // Non-integer header parens → declaredOffloadCount stays undefined → no offload claim.
+    // With keep_last=2 and 2 visible entries (no overflow), no sentinel error.
+    expect(hasError(r, "sentinel_missing_in_trimmed_section")).toBe(false);
+  });
+});
+
 describe("validateV3WithFilesystem", () => {
   let tmpDir: string;
   beforeEach(() => {
