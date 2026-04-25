@@ -23,6 +23,7 @@ fn structural_recognition_of_real_manifesto() {
         vec![
             "META",
             "ENTITIES",
+            "MODEL.FAMILIES",
             "THE.MOMENT.IT.STARTED",
             "WHAT.CLM.IS",
             "THE.RITUAL",
