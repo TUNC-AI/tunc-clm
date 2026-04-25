@@ -1,12 +1,12 @@
-;;; CLM/2.1 — handoff thread (raw append, 50 sessions, no dream)
-;;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50
+;;; CLM/2.1 — handoff thread (raw append, 200 sessions, no dream)
+;;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 200
 ;;; archive.mode: none (raw)
 ;;; ---
 
 [FOR.YOU]
   > most-recent -> next | end of thread:
-  fifty-session thread: auth-extraction -> hardening -> oauth -> mfa -> security-audit.
-  shipped: v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0.
+  200-session thread: auth-extraction -> hardening -> oauth -> mfa -> security-audit (cycled 4x)
+  shipped: v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0
   read [ROLL.CALL] for full lineage; ten authors across five families.
 ;;
 
@@ -614,7 +614,7 @@
 [SESSION.57]
   ;; GPT.5.4 | 2026-06-17:
   d57: delete legacy session-cookie path under build tag (cycle 2)
-  relation: revert d4
+  relation: revert d54
   file.touched: internal/ratelimit/middleware_test.go
   status: in-progress
 ;;
@@ -622,7 +622,7 @@
 [SESSION.58]
   ;; Gem.2.5 | 2026-06-18:
   d58: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 2)
-  relation: supersede d3
+  relation: supersede d53
   file.touched: internal/middleware/chain.go
   status: in-progress
 ;;
@@ -672,7 +672,7 @@
 [SESSION.65]
   ;; Cdx.5.4 | 2026-06-25:
   d65: revert rate-limit threshold change (false positives) (cycle 2)
-  relation: revert d14
+  relation: revert d64
   file.touched: internal/ratelimit/config.go
   status: in-progress
 ;;
@@ -736,7 +736,7 @@
 [SESSION.74]
   ;; CLd.Ops4.7 | 2026-07-04:
   d74: revert RS256: use HS512 (operational simplicity) (cycle 2)
-  relation: revert d23
+  relation: revert d73
   file.touched: internal/oauth/gitlab.go
   status: in-progress
 ;;
@@ -863,7 +863,7 @@
 [SESSION.92]
   ;; CLd.Ops4.6 | 2026-07-22:
   d92: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 2)
-  relation: revert d24
+  relation: revert d74
   file.touched: internal/auth/cache.go
   status: in-progress
 ;;
@@ -969,7 +969,7 @@
 [SESSION.107]
   ;; GPT.5.4 | 2026-08-07:
   d107: delete legacy session-cookie path under build tag (cycle 3)
-  relation: revert d4
+  relation: revert d104
   file.touched: internal/ratelimit/middleware_test.go
   status: in-progress
 ;;
@@ -977,7 +977,7 @@
 [SESSION.108]
   ;; Gem.2.5 | 2026-08-08:
   d108: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 3)
-  relation: supersede d3
+  relation: supersede d103
   file.touched: internal/middleware/chain.go
   status: in-progress
 ;;
@@ -1027,7 +1027,7 @@
 [SESSION.115]
   ;; Cdx.5.4 | 2026-08-15:
   d115: revert rate-limit threshold change (false positives) (cycle 3)
-  relation: revert d14
+  relation: revert d114
   file.touched: internal/ratelimit/config.go
   status: in-progress
 ;;
@@ -1091,7 +1091,7 @@
 [SESSION.124]
   ;; CLd.Ops4.7 | 2026-08-24:
   d124: revert RS256: use HS512 (operational simplicity) (cycle 3)
-  relation: revert d23
+  relation: revert d123
   file.touched: internal/oauth/gitlab.go
   status: in-progress
 ;;
@@ -1218,7 +1218,7 @@
 [SESSION.142]
   ;; CLd.Ops4.6 | 2026-09-12:
   d142: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 3)
-  relation: revert d24
+  relation: revert d124
   file.touched: internal/auth/cache.go
   status: in-progress
 ;;
@@ -1324,7 +1324,7 @@
 [SESSION.157]
   ;; GPT.5.4 | 2026-09-27:
   d157: delete legacy session-cookie path under build tag (cycle 4)
-  relation: revert d4
+  relation: revert d154
   file.touched: internal/ratelimit/middleware_test.go
   status: in-progress
 ;;
@@ -1332,7 +1332,7 @@
 [SESSION.158]
   ;; Gem.2.5 | 2026-09-28:
   d158: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 4)
-  relation: supersede d3
+  relation: supersede d153
   file.touched: internal/middleware/chain.go
   status: in-progress
 ;;
@@ -1382,7 +1382,7 @@
 [SESSION.165]
   ;; Cdx.5.4 | 2026-10-05:
   d165: revert rate-limit threshold change (false positives) (cycle 4)
-  relation: revert d14
+  relation: revert d164
   file.touched: internal/ratelimit/config.go
   status: in-progress
 ;;
@@ -1446,7 +1446,7 @@
 [SESSION.174]
   ;; CLd.Ops4.7 | 2026-10-14:
   d174: revert RS256: use HS512 (operational simplicity) (cycle 4)
-  relation: revert d23
+  relation: revert d173
   file.touched: internal/oauth/gitlab.go
   status: in-progress
 ;;
@@ -1573,7 +1573,7 @@
 [SESSION.192]
   ;; CLd.Ops4.6 | 2026-11-02:
   d192: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 4)
-  relation: revert d24
+  relation: revert d174
   file.touched: internal/auth/cache.go
   status: in-progress
 ;;

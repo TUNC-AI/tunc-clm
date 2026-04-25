@@ -41,8 +41,8 @@ Prose wins on a one-shot doc because BPE tokenizers are trained on prose. We don
 
 | thread depth | raw append | CLM/3.0 trim aggressive | savings |
 |---:|---:|---:|---:|
-| 50 sessions  |  5,726 tokens | **2,603 tokens** | **−54.5%** |
-| 200 sessions | 23,546 tokens | **6,661 tokens** | **−71.7%** |
+| 50 sessions  |  5,727 tokens | **2,605 tokens** | **−54.5%** |
+| 200 sessions | 23,552 tokens | **6,708 tokens** | **−71.5%** |
 
 Savings ratios *improve* with depth. Raw grows ×14.4 from 10→200 sessions; CLM/3.0 trim grows ×2.6 from 50→200. Bench in [`experiments/v3/RESULTS.md`](experiments/v3/RESULTS.md); generators are in [`experiments/v3/gen_50_session.py`](experiments/v3/gen_50_session.py) and reproducible offline (no API needed).
 

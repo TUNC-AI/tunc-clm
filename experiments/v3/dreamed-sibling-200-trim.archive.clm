@@ -1,5 +1,5 @@
 ;;; CLM/3.0 — archive sibling
-;;; auth-evolution.archive.clm | parent: dreamed-sibling-50.clm
+;;; auth-evolution.archive.clm | parent: dreamed-sibling-200-trim.clm
 ;;; loaded.on.lineage.queries.only
 ;;; ---
 
@@ -353,14 +353,14 @@
 [DELTA.session-57]
   ;; GPT.5.4 | 2026-06-17:
   add.decision d57: delete legacy session-cookie path under build tag (cycle 2)
-  relation: revert d4
+  relation: revert d54
   add.file: internal/ratelimit/middleware_test.go
 ;;
 
 [DELTA.session-58]
   ;; Gem.2.5 | 2026-06-18:
   add.decision d58: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 2)
-  relation: supersede d3
+  relation: supersede d53
   add.file: internal/middleware/chain.go
 ;;
 
@@ -403,7 +403,7 @@
 [DELTA.session-65]
   ;; Cdx.5.4 | 2026-06-25:
   add.decision d65: revert rate-limit threshold change (false positives) (cycle 2)
-  relation: revert d14
+  relation: revert d64
   add.file: internal/ratelimit/config.go
 ;;
 
@@ -458,7 +458,7 @@
 [DELTA.session-74]
   ;; CLd.Ops4.7 | 2026-07-04:
   add.decision d74: revert RS256: use HS512 (operational simplicity) (cycle 2)
-  relation: revert d23
+  relation: revert d73
   add.file: internal/oauth/gitlab.go
 ;;
 
@@ -567,7 +567,7 @@
 [DELTA.session-92]
   ;; CLd.Ops4.6 | 2026-07-22:
   add.decision d92: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 2)
-  relation: revert d24
+  relation: revert d74
   add.file: internal/auth/cache.go
 ;;
 
@@ -658,14 +658,14 @@
 [DELTA.session-107]
   ;; GPT.5.4 | 2026-08-07:
   add.decision d107: delete legacy session-cookie path under build tag (cycle 3)
-  relation: revert d4
+  relation: revert d104
   add.file: internal/ratelimit/middleware_test.go
 ;;
 
 [DELTA.session-108]
   ;; Gem.2.5 | 2026-08-08:
   add.decision d108: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 3)
-  relation: supersede d3
+  relation: supersede d103
   add.file: internal/middleware/chain.go
 ;;
 
@@ -708,7 +708,7 @@
 [DELTA.session-115]
   ;; Cdx.5.4 | 2026-08-15:
   add.decision d115: revert rate-limit threshold change (false positives) (cycle 3)
-  relation: revert d14
+  relation: revert d114
   add.file: internal/ratelimit/config.go
 ;;
 
@@ -763,7 +763,7 @@
 [DELTA.session-124]
   ;; CLd.Ops4.7 | 2026-08-24:
   add.decision d124: revert RS256: use HS512 (operational simplicity) (cycle 3)
-  relation: revert d23
+  relation: revert d123
   add.file: internal/oauth/gitlab.go
 ;;
 
@@ -872,7 +872,7 @@
 [DELTA.session-142]
   ;; CLd.Ops4.6 | 2026-09-12:
   add.decision d142: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 3)
-  relation: revert d24
+  relation: revert d124
   add.file: internal/auth/cache.go
 ;;
 
@@ -963,14 +963,14 @@
 [DELTA.session-157]
   ;; GPT.5.4 | 2026-09-27:
   add.decision d157: delete legacy session-cookie path under build tag (cycle 4)
-  relation: revert d4
+  relation: revert d154
   add.file: internal/ratelimit/middleware_test.go
 ;;
 
 [DELTA.session-158]
   ;; Gem.2.5 | 2026-09-28:
   add.decision d158: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 4)
-  relation: supersede d3
+  relation: supersede d153
   add.file: internal/middleware/chain.go
 ;;
 
@@ -1013,7 +1013,7 @@
 [DELTA.session-165]
   ;; Cdx.5.4 | 2026-10-05:
   add.decision d165: revert rate-limit threshold change (false positives) (cycle 4)
-  relation: revert d14
+  relation: revert d164
   add.file: internal/ratelimit/config.go
 ;;
 
@@ -1068,7 +1068,7 @@
 [DELTA.session-174]
   ;; CLd.Ops4.7 | 2026-10-14:
   add.decision d174: revert RS256: use HS512 (operational simplicity) (cycle 4)
-  relation: revert d23
+  relation: revert d173
   add.file: internal/oauth/gitlab.go
 ;;
 
@@ -1177,7 +1177,7 @@
 [DELTA.session-192]
   ;; CLd.Ops4.6 | 2026-11-02:
   add.decision d192: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 4)
-  relation: revert d24
+  relation: revert d174
   add.file: internal/auth/cache.go
 ;;
 
@@ -1521,8 +1521,6 @@
   d50: ship v0.7.0 with WebAuthn passkey [session 50]
   d51: relocate auth from web/server.go -> internal/auth/middlewar… [session 51]
   d52: rename AuthCheck -> RequireAuth (matches new convention) (c… [session 52]
-  d53: rate-limiter NOT refactored in this scope (out-of-scope) (c… [session 53]
-  d54: legacy session-cookie path PRESERVED in middleware (deferre… [session 54]
   d55: investigate CI flake before merge (cycle 2) [session 55]
   d56: fix flake by isolating test fixtures (cycle 2) [session 56]
   d57: delete legacy session-cookie path under build tag (cycle 2) [session 57]
@@ -1532,7 +1530,6 @@
   d61: fix CSRF token regression in /api/login (cycle 2) [session 61]
   d62: expand session timeout config to per-route (cycle 2) [session 62]
   d63: add audit log for failed auth attempts (cycle 2) [session 63]
-  d64: rate-limit threshold reduced 100/min -> 60/min (cycle 2) [session 64]
   d65: revert rate-limit threshold change (false positives) (cycle… [session 65]
   d66: structured logging for auth path (zerolog) (cycle 2) [session 66]
   d67: benchmark: middleware chain hot-path latency (cycle 2) [session 67]
@@ -1541,8 +1538,6 @@
   d70: post-launch bugs closed; ship v0.4.1 (cycle 2) [session 70]
   d71: add OAuth provider registry (Google, GitHub, GitLab) (cycle… [session 71]
   d72: OAuth callback under /auth/oauth/<provider>/callback (cycle… [session 72]
-  d73: session token: JWT signed RS256 (was: opaque random) (cycle… [session 73]
-  d74: revert RS256: use HS512 (operational simplicity) (cycle 2) [session 74]
   d75: OAuth state param: encrypted user-intent payload (cycle 2) [session 75]
   d76: rate-limit OAuth callbacks separately (5/min/IP) (cycle 2) [session 76]
   d77: add provider-specific scope mapping (cycle 2) [session 77]
@@ -1571,8 +1566,6 @@
   d100: ship v0.7.0 with WebAuthn passkey (cycle 2) [session 100]
   d101: relocate auth from web/server.go -> internal/auth/middlewar… [session 101]
   d102: rename AuthCheck -> RequireAuth (matches new convention) (c… [session 102]
-  d103: rate-limiter NOT refactored in this scope (out-of-scope) (c… [session 103]
-  d104: legacy session-cookie path PRESERVED in middleware (deferre… [session 104]
   d105: investigate CI flake before merge (cycle 3) [session 105]
   d106: fix flake by isolating test fixtures (cycle 3) [session 106]
   d107: delete legacy session-cookie path under build tag (cycle 3) [session 107]
@@ -1582,7 +1575,6 @@
   d111: fix CSRF token regression in /api/login (cycle 3) [session 111]
   d112: expand session timeout config to per-route (cycle 3) [session 112]
   d113: add audit log for failed auth attempts (cycle 3) [session 113]
-  d114: rate-limit threshold reduced 100/min -> 60/min (cycle 3) [session 114]
   d115: revert rate-limit threshold change (false positives) (cycle… [session 115]
   d116: structured logging for auth path (zerolog) (cycle 3) [session 116]
   d117: benchmark: middleware chain hot-path latency (cycle 3) [session 117]
@@ -1591,8 +1583,6 @@
   d120: post-launch bugs closed; ship v0.4.1 (cycle 3) [session 120]
   d121: add OAuth provider registry (Google, GitHub, GitLab) (cycle… [session 121]
   d122: OAuth callback under /auth/oauth/<provider>/callback (cycle… [session 122]
-  d123: session token: JWT signed RS256 (was: opaque random) (cycle… [session 123]
-  d124: revert RS256: use HS512 (operational simplicity) (cycle 3) [session 124]
   d125: OAuth state param: encrypted user-intent payload (cycle 3) [session 125]
   d126: rate-limit OAuth callbacks separately (5/min/IP) (cycle 3) [session 126]
   d127: add provider-specific scope mapping (cycle 3) [session 127]
@@ -1621,8 +1611,6 @@
   d150: ship v0.7.0 with WebAuthn passkey (cycle 3) [session 150]
   d151: relocate auth from web/server.go -> internal/auth/middlewar… [session 151]
   d152: rename AuthCheck -> RequireAuth (matches new convention) (c… [session 152]
-  d153: rate-limiter NOT refactored in this scope (out-of-scope) (c… [session 153]
-  d154: legacy session-cookie path PRESERVED in middleware (deferre… [session 154]
   d155: investigate CI flake before merge (cycle 4) [session 155]
   d156: fix flake by isolating test fixtures (cycle 4) [session 156]
   d157: delete legacy session-cookie path under build tag (cycle 4) [session 157]
@@ -1632,7 +1620,6 @@
   d161: fix CSRF token regression in /api/login (cycle 4) [session 161]
   d162: expand session timeout config to per-route (cycle 4) [session 162]
   d163: add audit log for failed auth attempts (cycle 4) [session 163]
-  d164: rate-limit threshold reduced 100/min -> 60/min (cycle 4) [session 164]
   d165: revert rate-limit threshold change (false positives) (cycle… [session 165]
   d166: structured logging for auth path (zerolog) (cycle 4) [session 166]
   d167: benchmark: middleware chain hot-path latency (cycle 4) [session 167]
@@ -1641,8 +1628,6 @@
   d170: post-launch bugs closed; ship v0.4.1 (cycle 4) [session 170]
   d171: add OAuth provider registry (Google, GitHub, GitLab) (cycle… [session 171]
   d172: OAuth callback under /auth/oauth/<provider>/callback (cycle… [session 172]
-  d173: session token: JWT signed RS256 (was: opaque random) (cycle… [session 173]
-  d174: revert RS256: use HS512 (operational simplicity) (cycle 4) [session 174]
   d175: OAuth state param: encrypted user-intent payload (cycle 4) [session 175]
   d176: rate-limit OAuth callbacks separately (5/min/IP) (cycle 4) [session 176]
   d177: add provider-specific scope mapping (cycle 4) [session 177]

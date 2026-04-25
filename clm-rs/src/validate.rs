@@ -326,23 +326,109 @@ fn has_sentinel(body: &[String], section_name: &str) -> bool {
 
 fn check_section_sentinels(doc: &Document, trim: &TrimConfig, errors: &mut Vec<ValidationError>) {
     for (section, _trivia) in &doc.sections {
-        let (target_keep, sentinel_target) = match section.name.as_str() {
-            "ROLL.CALL" => (trim.roll_call, "ROLL.CALL"),
-            "DREAM.LOG" => (trim.dream_log, "DREAM.LOG"),
+        match section.name.as_str() {
+            "ROLL.CALL" => {
+                let entries = entry_count(&section.body);
+                if entries > trim.roll_call && !has_sentinel(&section.body, "ROLL.CALL") {
+                    errors.push(ValidationError::SentinelMissingInTrimmedSection {
+                        section: section.name.clone(),
+                        entries,
+                        keep: trim.roll_call,
+                    });
+                }
+            }
+            "DREAM.LOG" => {
+                let entries = entry_count(&section.body);
+                if entries > trim.dream_log && !has_sentinel(&section.body, "DREAM.LOG") {
+                    errors.push(ValidationError::SentinelMissingInTrimmedSection {
+                        section: section.name.clone(),
+                        entries,
+                        keep: trim.dream_log,
+                    });
+                }
+            }
+            "STATE" => {
+                // decisions.live is an indented sub-block inside [STATE]; the spec requires
+                // a truncation sentinel before kept entries when it overflows trim.decisions_live.
+                let (entries, has_sent) = decisions_live_stats(&section.body);
+                if entries > trim.decisions_live && !has_sent {
+                    errors.push(ValidationError::SentinelMissingInTrimmedSection {
+                        section: "STATE.decisions.live".to_string(),
+                        entries,
+                        keep: trim.decisions_live,
+                    });
+                }
+            }
             _ => continue,
-        };
-        let entries = entry_count(&section.body);
-        if entries > target_keep && !has_sentinel(&section.body, sentinel_target) {
-            errors.push(ValidationError::SentinelMissingInTrimmedSection {
-                section: section.name.clone(),
-                entries,
-                keep: target_keep,
-            });
         }
     }
 }
 
+/// Inspect a `[STATE]` body, find the `decisions.live:` sub-block, and return
+/// (entry_count, sentinel_present_before_kept_entries).
+///
+/// Per `SPEC.clm` `decisions.live.delimitation`:
+///   - begins at a line matching `\s*decisions\.live[:( ]`
+///   - contains entries indented deeper than the `decisions.live:` line itself
+///   - ends at the next un-indented key OR the section close
+///   - sentinel placement: BEFORE the kept entries (a comment naming `DECISIONS.ARCHIVE`)
+fn decisions_live_stats(state_body: &[String]) -> (usize, bool) {
+    let mut in_block = false;
+    let mut block_indent: usize = 0;
+    let mut entries = 0usize;
+    let mut sentinel = false;
+    let mut seen_entry_yet = false;
+
+    for raw in state_body {
+        let leading = raw.chars().take_while(|c| *c == ' ').count();
+        let trimmed = raw.trim_start();
+
+        if !in_block {
+            // Per SPEC.clm decisions.live.delimitation: line matches `^\s*decisions\.live[:( ]`
+            // i.e. the next char after "decisions.live" is one of `:`, `(`, ` `.
+            if let Some(rest) = trimmed.strip_prefix("decisions.live") {
+                let next = rest.chars().next();
+                if matches!(next, Some(':') | Some('(') | Some(' ')) {
+                    in_block = true;
+                    block_indent = leading;
+                }
+            }
+            continue;
+        }
+
+        // Inside the block. Blank lines don't terminate; un-indented keys do.
+        if trimmed.is_empty() {
+            continue;
+        }
+        if leading <= block_indent {
+            // Back at or above the decisions.live key indent => block ended.
+            break;
+        }
+
+        if trimmed.starts_with(";;") {
+            // Comment line. If it mentions DECISIONS.ARCHIVE / offloaded and appears BEFORE any
+            // entry, it's the truncation sentinel.
+            if !seen_entry_yet
+                && trimmed.contains("DECISIONS.ARCHIVE")
+                && trimmed.contains("offloaded")
+            {
+                sentinel = true;
+            }
+            continue;
+        }
+
+        // Non-comment, non-blank => count as one decision entry.
+        entries += 1;
+        seen_entry_yet = true;
+    }
+
+    (entries, sentinel)
+}
+
 /// Check `[DELTA.<session-id>]` section names for grammar conformance.
+///
+/// `[DELTA.ARCHIVE]` is a structural section name used by inline-archive mode
+/// (per `archive.lifecycle` in `SPEC.clm`) and is NOT a session-id; skip it.
 fn check_delta_session_ids(
     doc: &Document,
     errors: &mut Vec<ValidationError>,
@@ -353,6 +439,10 @@ fn check_delta_session_ids(
         let Some(session_id) = section.name.strip_prefix("DELTA.") else {
             continue;
         };
+        // Reserved structural section name; not a session-id.
+        if session_id == "ARCHIVE" {
+            continue;
+        }
         if !is_valid_session_id(session_id) {
             errors.push(ValidationError::InvalidDeltaSessionId {
                 section_name: section.name.clone(),
@@ -554,6 +644,94 @@ mod tests {
         assert!(
             report.errors.is_empty(),
             "SPEC.clm validation errors: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn missing_decisions_live_sentinel_is_error() {
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n;;; trim.config: roll_call=10, dream_log=3, decisions_live=2\n;;; ---\n\n",
+        );
+        text.push_str("[STATE]\n");
+        text.push_str("  decisions.live (last 2 of 5 archived):\n");
+        text.push_str("    d3: keep me [session 30]\n");
+        text.push_str("    d4: keep me too [session 40]\n");
+        text.push_str("    d5: keep me also [session 50]\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. }
+                    if section == "STATE.decisions.live"
+            )),
+            "expected decisions.live sentinel error; got: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn decisions_live_sentinel_present_is_ok() {
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n;;; trim.config: roll_call=10, dream_log=3, decisions_live=2\n;;; ---\n\n",
+        );
+        text.push_str("[STATE]\n");
+        text.push_str("  decisions.live (last 2 of 5 archived):\n");
+        text.push_str("    ;; (oldest 3 live decisions offloaded to [DECISIONS.ARCHIVE] in sibling)\n");
+        text.push_str("    d4: keep me [session 40]\n");
+        text.push_str("    d5: keep me too [session 50]\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            !report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. }
+                    if section == "STATE.decisions.live"
+            )),
+            "did not expect decisions.live sentinel error; got: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn delta_archive_section_is_not_session_id_validated() {
+        // [DELTA.ARCHIVE] is a structural section in inline-archive mode; must not be
+        // mistaken for a session-id with an invalid (uppercase) form.
+        let mut text = String::from(";;; CLM/3.0 — test\n;;; test.clm\n;;; ---\n\n");
+        text.push_str("[STATE]\n  ;; empty\n;;\n\n");
+        text.push_str("[DELTA.ARCHIVE]\n");
+        text.push_str("  [DELTA.session-1]\n");
+        text.push_str("    ;; older delta archived inline\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            !report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::InvalidDeltaSessionId { session_id, .. }
+                    if session_id == "ARCHIVE"
+            )),
+            "DELTA.ARCHIVE incorrectly flagged as invalid session-id: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn dreamed_inline_archive_artifact_validates() {
+        // Regression: experiments/v3/dreamed.clm uses inline archive with [DELTA.ARCHIVE]
+        // and trim.mode: none. The validator must accept it.
+        let text = include_str!("../../experiments/v3/dreamed.clm");
+        let doc = Document::parse(text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            report.errors.is_empty(),
+            "dreamed.clm validation errors: {:?}",
             report.errors
         );
     }

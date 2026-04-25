@@ -1,8 +1,8 @@
 ;;; CLM/3.0 — handoff thread (dreamed every 5 sessions, sibling archive) — aggressive trim
-;;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50
+;;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 200
 ;;; last.dream: 2026-11-05 evening
 ;;; active.deltas: 5 | archived.deltas: 195
-;;; archive.mode: sibling | archive.file: dreamed-sibling-50-trim.archive.clm
+;;; archive.mode: sibling | archive.file: dreamed-sibling-200-trim.archive.clm
 ;;; trim.mode: aggressive
 ;;; ---
 
@@ -10,7 +10,7 @@
   > most-recent -> next | end of thread:
   thread depth: 200 sessions across 39 dream passes.
   active deltas since last dream: 5 (sessions 196-200).
-  archive.file: dreamed-sibling-50.archive.clm — 195 archived deltas.
+  archive.file: dreamed-sibling-200-trim.archive.clm — 195 archived deltas.
 ;;
 
 [STATE]
@@ -20,7 +20,7 @@
   goal: auth platform — extraction, hardening, OAuth, MFA, perf+security audit
   status: in-progress (latest session: 200)
   shipped.versions: [v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0]
-  decisions.live (190 of 195 archived):
+  decisions.live (175 of 195 archived):
     d188: audit log MFA enable/disable events (cycle 4) [session 188]
     d189: WebAuthn passkey support deferred to v0.7 (cycle 4) [session 189]
     d190: ship MFA as v0.6.0 (cycle 4) [session 190]
@@ -29,9 +29,9 @@
     d193: backport JWT migration to v0.6.x (cycle 4) [session 193]
     d194: performance: middleware chain p95 800us -> 120us (cycle 4) [session 194]
     d195: memory: session cache pool sync.Pool (cycle 4) [session 195]
-    (oldest 182 live decisions: see [DECISIONS.ARCHIVE] in sibling)
-  decisions.reverted: [d4, d14, d23, d24]
-  decisions.superseded: [d3]
+    (oldest 167 live decisions: see [DECISIONS.ARCHIVE] in sibling)
+  decisions.reverted: [d4, d14, d23, d24, d54, d64, d73, d74, d104, d114, d123, d124, d154, d164, d173, d174]
+  decisions.superseded: [d3, d53, d103, d153]
 ;;
 
 [DELTA.session-196]

@@ -166,20 +166,40 @@ def date_for_session(n: int) -> str:
 
 
 def build_events(depth: int = 50) -> List[Event]:
-    """Build `depth` synthetic events. Cycles the 5 phases as needed for depth > 50."""
+    """Build `depth` synthetic events. Cycles the 5 phases as needed for depth > 50.
+
+    Per Codex review (P2 #4): `revert dN` / `supersede dN` relation strings are rebased
+    onto the current cycle so later-cycle reverts hit later-cycle decisions, not cycle-1.
+    """
     events: List[Event] = []
     decision_id = 0
     sessions_per_phase = 10
+    cycle_length = sessions_per_phase * len(PHASES)  # 50 — first decision id of each cycle is cycle*50 + 1
+
+    def rebase_relation(relation: str | None, cycle: int) -> str | None:
+        """`revert d4` on cycle 0 stays `revert d4`; on cycle 1 becomes `revert d54`; etc."""
+        if relation is None or cycle == 0:
+            return relation
+        # Format: "<verb> dN" or "<verb> dN (...)"
+        parts = relation.split()
+        if len(parts) >= 2 and parts[1].startswith("d") and parts[1][1:].split('(')[0].rstrip().isdigit():
+            target_str = parts[1][1:]
+            target = int(target_str)
+            new_target = target + cycle * cycle_length
+            parts[1] = f"d{new_target}"
+            return " ".join(parts)
+        return relation
+
     for session in range(1, depth + 1):
         zero_idx = session - 1
         phase_idx = (zero_idx // sessions_per_phase) % len(PHASES)
         sub_idx = zero_idx % sessions_per_phase
         phase = PHASES[phase_idx]
         decision_id += 1
-        text_template, relation = phase["decisions"][sub_idx]
-        # When cycling phases beyond the first pass, suffix iteration to avoid pure duplicates
-        cycle = zero_idx // (sessions_per_phase * len(PHASES))
+        text_template, relation_template = phase["decisions"][sub_idx]
+        cycle = zero_idx // cycle_length
         text = text_template if cycle == 0 else f"{text_template} (cycle {cycle + 1})"
+        relation = rebase_relation(relation_template, cycle)
         author = AUTHORS[(session - 1) % len(AUTHORS)]
         files = phase["files"][sub_idx % len(phase["files"]) :][:1]
         events.append(Event(
@@ -197,16 +217,18 @@ def build_events(depth: int = 50) -> List[Event]:
 # ---------- renderers ----------
 
 def render_raw_append(events: List[Event]) -> str:
+    depth = len(events)
     out: List[str] = [
-        ";;; CLM/2.1 — handoff thread (raw append, 50 sessions, no dream)",
-        ";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50",
+        f";;; CLM/2.1 — handoff thread (raw append, {depth} sessions, no dream)",
+        f";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: {depth}",
         ";;; archive.mode: none (raw)",
         ";;; ---",
         "",
         "[FOR.YOU]",
         "  > most-recent -> next | end of thread:",
-        "  fifty-session thread: auth-extraction -> hardening -> oauth -> mfa -> security-audit.",
-        "  shipped: v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0.",
+        f"  {depth}-session thread: auth-extraction -> hardening -> oauth -> mfa -> security-audit"
+        + (f" (cycled {depth // 50}x)" if depth > 50 else ""),
+        "  shipped: v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0",
         "  read [ROLL.CALL] for full lineage; ten authors across five families.",
         ";;",
         "",
@@ -379,12 +401,15 @@ def render_dreamed(
     dream_log_lines.extend(dl_visible)
     dream_log_lines += [";;", ""]
 
+    depth = len(events)
+    archive_filename = f"dreamed-sibling-{depth}{'-trim' if trim_mode == 'aggressive' else ''}.archive.clm"
+
     for_you = [
         "[FOR.YOU]",
         "  > most-recent -> next | end of thread:",
-        f"  thread depth: {len(events)} sessions across {n_dreams} dream passes.",
+        f"  thread depth: {depth} sessions across {n_dreams} dream passes.",
         f"  active deltas since last dream: {len(active_events)} (sessions {last_dream+1}-{events[-1].session}).",
-        f"  archive.file: dreamed-sibling-50.archive.clm — {len(archived_events)} archived deltas.",
+        f"  archive.file: {archive_filename} — {len(archived_events)} archived deltas.",
         ";;",
         "",
     ]
@@ -400,12 +425,11 @@ def render_dreamed(
         closer.append(f";;; — CLd.Ops4.7 | dream.pass.{d} | {date_for_session(dream_session)}")
 
     title_suffix = " — aggressive trim" if trim_mode == "aggressive" else ""
-    archive_filename = f"dreamed-sibling-50{'-trim' if trim_mode == 'aggressive' else ''}.archive.clm"
 
     live_doc = "\n".join(
         [
             f";;; CLM/3.0 — handoff thread (dreamed every 5 sessions, sibling archive){title_suffix}",
-            ";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50",
+            f";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: {depth}",
             f";;; last.dream: {date_for_session(last_dream)} evening",
             f";;; active.deltas: {len(active_events)} | archived.deltas: {len(archived_events)}",
             f";;; archive.mode: sibling | archive.file: {archive_filename}",
@@ -422,9 +446,10 @@ def render_dreamed(
     )
 
     # Archive
+    parent_filename = f"dreamed-sibling-{depth}{'-trim' if trim_mode == 'aggressive' else ''}.clm"
     archive_lines = [
         ";;; CLM/3.0 — archive sibling",
-        ";;; auth-evolution.archive.clm | parent: dreamed-sibling-50.clm",
+        f";;; auth-evolution.archive.clm | parent: {parent_filename}",
         ";;; loaded.on.lineage.queries.only",
         ";;; ---",
         "",
@@ -484,38 +509,76 @@ def render_dreamed(
 
 
 def render_prose_summary(events: List[Event]) -> str:
-    """~400-token markdown summary; lossy on lineage."""
-    return (
-        "# Auth platform — 50-session evolution summary\n"
-        "\n"
-        "**Status (final session):** v0.7.0 shipped with WebAuthn passkey support after a "
-        "Trail of Bits security audit. JWT verify regression caught and patched in v0.6.1.\n"
-        "\n"
-        "## Phases\n"
-        "\n"
-        "1. **Auth middleware extraction** (sessions 1-10): pulled auth from `web/server.go` into "
-        "`internal/auth/`, renamed `AuthCheck` to `RequireAuth`, deleted the legacy session-cookie "
-        "path under a build tag after it was traced to a test-fixture ordering bug, reintroduced "
-        "rate limiting in a separate `internal/ratelimit/` package, added middleware composition "
-        "via `Chain(...)`. Shipped v0.4.0.\n"
-        "2. **Post-launch hardening** (sessions 11-20): CSRF fix, per-route session timeout, "
-        "audit logging, rate-limit threshold tuning, structured logging, RequireAuth caching, "
-        "Prometheus metrics. Shipped v0.4.1.\n"
-        "3. **OAuth integration** (sessions 21-30): provider registry (Google/GitHub/GitLab), "
-        "JWT migration to HS512, encrypted state param, per-callback rate limiting, scope "
-        "mapping, integration tests, documentation. Shipped v0.5.0.\n"
-        "4. **MFA** (sessions 31-40): TOTP per RFC 6238, ten single-use backup codes, QR-based "
-        "enrollment, no SMS (per NIST 800-63B), per-role MFA-required policy, lockout after 5 "
-        "failed attempts, audit logging. Shipped v0.6.0. WebAuthn deferred.\n"
-        "5. **Performance + security audit** (sessions 41-50): Trail of Bits engagement found a "
-        "JWT-verify CVE (HS512 → RS256 reverted), middleware p95 dropped 800µs to 120µs, "
-        "supply-chain checks via govulncheck in CI, OWASP top 10 reviewed. Shipped v0.6.1 with "
-        "JWT patch and v0.7.0 with WebAuthn.\n"
-        "\n"
-        "## Status\n"
-        "\n"
-        "All planned scope shipped across six minor versions. Production-ready.\n"
-    )
+    """Markdown summary of the synthetic thread — lossy on lineage by design.
+
+    Generated from the events list so depth >50 produces a depth-appropriate summary
+    (per Codex review P2 #5: the 50-session prose was previously hardcoded and reused
+    verbatim for 200-session comparisons, making the bench non-comparable).
+    """
+    depth = len(events)
+    cycles = max(1, depth // 50)
+    sessions_per_phase = 10
+    phase_names = [
+        "auth middleware extraction",
+        "post-launch hardening",
+        "OAuth integration",
+        "MFA support",
+        "performance + security audit",
+    ]
+    versions = ["v0.4.0", "v0.4.1", "v0.5.0", "v0.6.0", "v0.6.1", "v0.7.0"]
+    phases_in_thread = min((depth + sessions_per_phase - 1) // sessions_per_phase, len(phase_names) * cycles)
+
+    last_event = events[-1]
+    out = [
+        f"# Auth platform — {depth}-session evolution summary",
+        "",
+        f"**Status (final session, session {last_event.session}):** {last_event.author} on "
+        f"{last_event.date} closed with `{_short(last_event.decision_text, 80)}`. "
+        f"Across {phases_in_thread} phases ({cycles}× cycle{'s' if cycles > 1 else ''}), the project "
+        f"shipped {', '.join(versions[: min(len(versions), phases_in_thread)])}"
+        + (f" plus repeated re-shipping in cycles 2-{cycles}" if cycles > 1 else "")
+        + ".",
+        "",
+        "## Phases",
+        "",
+    ]
+    phase_summaries = [
+        "**Auth middleware extraction**: pulled auth from `web/server.go` into `internal/auth/`, "
+        "renamed `AuthCheck` to `RequireAuth`, deleted the legacy session-cookie path under a "
+        "build tag after it was traced to a test-fixture ordering bug, reintroduced rate "
+        "limiting in a separate `internal/ratelimit/` package, added middleware composition.",
+        "**Post-launch hardening**: CSRF fix, per-route session timeout, audit logging, "
+        "rate-limit threshold tuning, structured logging, `RequireAuth` caching, Prometheus metrics.",
+        "**OAuth integration**: provider registry (Google/GitHub/GitLab), JWT migration to HS512, "
+        "encrypted state param, per-callback rate limiting, scope mapping, integration tests.",
+        "**MFA**: TOTP per RFC 6238, ten single-use backup codes, QR-based enrollment, no SMS "
+        "(per NIST 800-63B), per-role MFA-required policy, lockout after 5 failed attempts.",
+        "**Performance + security audit**: Trail of Bits engagement found a JWT-verify CVE "
+        "(HS512 → RS256 reverted), middleware p95 dropped 800µs to 120µs, supply-chain checks "
+        "via `govulncheck`, OWASP top 10 reviewed.",
+    ]
+    item = 0
+    for cycle in range(cycles):
+        for p_idx, summary in enumerate(phase_summaries):
+            if item >= phases_in_thread:
+                break
+            session_start = item * sessions_per_phase + 1
+            session_end = min(session_start + sessions_per_phase - 1, depth)
+            cycle_label = f", cycle {cycle + 1}" if cycles > 1 else ""
+            out.append(f"{item + 1}. **{phase_names[p_idx]}** (sessions {session_start}-{session_end}{cycle_label}): "
+                       f"{summary[summary.find(':') + 2:].strip()}")
+            item += 1
+        if item >= phases_in_thread:
+            break
+    out += [
+        "",
+        "## Status",
+        "",
+        f"All planned scope shipped across {phases_in_thread} phases over {depth} sessions. "
+        f"Production-ready.",
+        "",
+    ]
+    return "\n".join(out)
 
 
 def _short(s: str, n: int = 60) -> str:

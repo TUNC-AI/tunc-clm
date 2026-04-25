@@ -4,9 +4,11 @@
 
 | thread depth | raw append | CLM/3.0 (no trim) | **CLM/3.0 trim aggressive** | prose summary (lossy) |
 |---:|---:|---:|---:|---:|
-| 10 sessions  |  1,631 | 1,459 (-10.5%) | — | 235 |
-| 50 sessions  |  5,726 | 4,498 (-21.4%) | **2,603 (-54.5%)** | 438 |
-| 200 sessions | 23,546 | 15,981 (-32.1%) | **6,661 (-71.7%)** | 438 |
+| 10 sessions  |  1,631 | 1,459 (−10.5%) | — | 235 |
+| 50 sessions  |  5,727 | 4,498 (−21.4%) | **2,605 (−54.5%)** | 421 |
+| 200 sessions | 23,552 | 16,026 (−32.0%) | **6,708 (−71.5%)** | 1,403 |
+
+*Note: previous numbers in this PR (e.g. -71.7% at 200 sessions, prose=438) were corrected after Codex review identified that prose summary was hardcoded at the 50-session text and cycle-N reverts pointed at cycle-1 decisions. Both bugs fixed; numbers re-measured. The architecture's claim (savings improve with depth) holds either way.*
 
 **Inline-archive mode** is falsified at 10 sessions (+14.4% vs raw); sibling-archive is the default that ships.
 
@@ -94,21 +96,21 @@ Same auth-platform narrative continued: extraction → hardening → OAuth → M
 
 | variant                          | tokens | vs raw |
 |----------------------------------|-------:|-------:|
-| Prose summary                    |    438 | -98.1% (loses lineage) |
-| **CLM/3.0 trim aggressive** | **6,661** | **-71.7% (lineage in sibling)** |
-| CLM/3.0 sibling-archive          |  15,981 | -32.1% (lineage in sibling) |
-| Raw append                       |  23,546 | (baseline) |
+| Prose summary                    |  1,403 | -94.0% (loses lineage) |
+| **CLM/3.0 trim aggressive** | **6,708** | **-71.5% (lineage in sibling)** |
+| CLM/3.0 sibling-archive          |  16,026 | -32.0% (lineage in sibling) |
+| Raw append                       |  23,552 | (baseline) |
 
 ### Scaling table (live-context tokens)
 
 | variant | 10 sessions | 50 sessions | 200 sessions | growth ratio (10→200) |
 |---|---:|---:|---:|---:|
-| Raw append | 1,631 | 5,726 | 23,546 | **×14.44** |
-| CLM/3.0 (no trim) | 1,459 | 4,498 | 15,981 | ×10.95 |
-| **CLM/3.0 trim aggressive** | — | **2,603** | **6,661** | **×2.56 (50→200)** |
-| Prose summary (lossy) | 235 | 438 | 438 | (constant; lineage destroyed) |
+| Raw append | 1,631 | 5,727 | 23,552 | **×14.44** |
+| CLM/3.0 (no trim) | 1,459 | 4,498 | 16,026 | ×10.98 |
+| **CLM/3.0 trim aggressive** | — | **2,605** | **6,708** | **×2.58 (50→200)** |
+| Prose summary (lossy) | 235 | 421 | 1,403 | (loses lineage at every depth) |
 
-**The architecture's main claim, validated:** CLM/3.0 trim-live grows ×2.56 from 50→200 while raw append grows ×4.11 over the same range. Live-context savings improve from 54.5% at 50 sessions to **71.7% at 200 sessions** — and the curve continues toward an asymptote bounded by `[STATE]` size + active-deltas + trimmed-section keep_last.
+**The architecture's main claim, validated:** CLM/3.0 trim-live grows ×2.58 from 50→200 while raw append grows ×4.11 over the same range. Live-context savings improve from 54.5% at 50 sessions to **71.5% at 200 sessions** — and the curve continues toward an asymptote bounded by `[STATE]` size + active-deltas + trimmed-section keep_last.
 
 ### What this tells us
 
@@ -120,9 +122,9 @@ Same auth-platform narrative continued: extraction → hardening → OAuth → M
 
 4. **The architecture's win scales with thread depth — confirmed at 200 sessions.**
 
-   - Raw append: ×14.44 growth from 10→200 (1,631 → 23,546 tokens).
-   - v3.0 with `trim.mode: none`: ×10.95 growth (1,459 → 15,981).
-   - **v3.0 with `trim.mode: aggressive`**: ×2.56 growth from 50→200 (2,603 → 6,661). Savings ratio improves from -54.5% at 50 sessions to **-71.7% at 200 sessions**.
+   - Raw append: ×14.44 growth from 10→200 (1,631 → 23,552 tokens).
+   - v3.0 with `trim.mode: none`: ×10.98 growth (1,459 → 16,026).
+   - **v3.0 with `trim.mode: aggressive`**: ×2.58 growth from 50→200 (2,605 → 6,708). Savings ratio improves from -54.5% at 50 sessions to **-71.5% at 200 sessions**.
 
    **The optimistic prediction was right after all — once trim modes were added.** v3.0 without trim doesn't deliver constant-size live doc because `[ROLL.CALL]`, `[DREAM.LOG]`, and `[STATE].decisions.live` all grow linearly with thread depth. Aggressive trim fixes this by offloading old entries from those sections to the sibling archive. At 200 sessions the savings curve is still improving; by 500–1000 sessions it should asymptote near 80–90% as `[STATE] + active deltas + last-N` becomes the dominant cost regardless of thread depth.
 
