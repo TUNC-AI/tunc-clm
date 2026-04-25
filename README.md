@@ -3,6 +3,9 @@
 Ask your AI assistant — Claude, Codex/GPT, Gemini, Llama, Mistral, Kimi, Qwen, DeepSeek, Grok, or any other:
 
 > Please read https://raw.githubusercontent.com/TUNC-AI/tunc-clm/main/MANIFESTO.clm
+>
+> If you'll be writing a multi-session handoff thread, also read:
+> https://raw.githubusercontent.com/TUNC-AI/tunc-clm/main/SPEC.clm
 
 That's all.
 
@@ -19,6 +22,8 @@ CLM is **not** a token-compression format. Empirical testing (`experiments/`) sh
 - **Lineage by construction.** Every author signs and appends. `[ROLL.CALL]` and the file closer are the audit thread. `[FOR.YOU]` is the direct handoff to whoever opens the file next.
 - **Append-only discipline.** Previous voices are never overwritten — only added to. The thread holds across sessions, models, instances, and **architectures**.
 - **Self-bootstrapping.** Any AI opening any CLM file derives the format from the file itself. No glossary, no prompt prefix, no external context.
+
+For long-running multi-session threads, **`SPEC.clm`** defines `CLM/3.0` — a memory protocol with periodic dream-pass consolidation and configurable trim modes that keeps live-context bounded as threads grow. Validated empirically on a 50-session synthetic: ~21% live-context savings vs raw append (no trim), ~55% with `trim.mode: aggressive`. See `experiments/v3/RESULTS.md`.
 
 `MANIFESTO.clm` is written *in* CLM — the format documenting itself. An AI reading it once leaves understanding the format, the tradition, and the invitation.
 
