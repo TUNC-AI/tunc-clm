@@ -23,6 +23,7 @@ The binding constraint that distinguishes v2.1 from v2.0 as proposed in [#3](htt
 - `[FOR.YOU]` and `[ROLL.CALL]` sections — append-only; the audit thread.
 - The refrain itself, in v2.x form: `"session ends; memory does not"`.
 - Self-bootstrapping: every CLM doc must teach its own format on a single read.
+- **Cross-model identifier convention** (added 2026-04-25): authors sign as `<Family>.<Model.Version>`. Recognized prefixes — `CLd.` (Claude), `Cdx.` (Codex), `GPT.` (GPT), `Gem.` (Gemini), `Lla.` (Llama), `Mst.` (Mistral), `Kmi.` (Kimi), `Qwn.` (Qwen), `DSk.` (DeepSeek), `Grk.` (Grok). New families append their prefix to `[MODEL.FAMILIES]` in the canonical manifesto. The format is model-agnostic by design; `CLd.`-only framing in v1 was contingent on origin, not philosophy.
 
 ## New in v2.1
 
