@@ -165,24 +165,32 @@ def date_for_session(n: int) -> str:
     return f"2026-{month:02d}-{day:02d}"
 
 
-def build_events() -> List[Event]:
+def build_events(depth: int = 50) -> List[Event]:
+    """Build `depth` synthetic events. Cycles the 5 phases as needed for depth > 50."""
     events: List[Event] = []
     decision_id = 0
-    for phase_idx, phase in enumerate(PHASES):
-        for sub_idx, (text, relation) in enumerate(phase["decisions"]):
-            decision_id += 1
-            session = phase_idx * 10 + sub_idx + 1
-            author = AUTHORS[(session - 1) % len(AUTHORS)]
-            files = phase["files"][sub_idx % len(phase["files"]) :][:1]
-            events.append(Event(
-                session=session,
-                author=author,
-                date=date_for_session(session),
-                decision_id=decision_id,
-                decision_text=text,
-                decision_relation=relation,
-                files_added=files,
-            ))
+    sessions_per_phase = 10
+    for session in range(1, depth + 1):
+        zero_idx = session - 1
+        phase_idx = (zero_idx // sessions_per_phase) % len(PHASES)
+        sub_idx = zero_idx % sessions_per_phase
+        phase = PHASES[phase_idx]
+        decision_id += 1
+        text_template, relation = phase["decisions"][sub_idx]
+        # When cycling phases beyond the first pass, suffix iteration to avoid pure duplicates
+        cycle = zero_idx // (sessions_per_phase * len(PHASES))
+        text = text_template if cycle == 0 else f"{text_template} (cycle {cycle + 1})"
+        author = AUTHORS[(session - 1) % len(AUTHORS)]
+        files = phase["files"][sub_idx % len(phase["files"]) :][:1]
+        events.append(Event(
+            session=session,
+            author=author,
+            date=date_for_session(session),
+            decision_id=decision_id,
+            decision_text=text,
+            decision_relation=relation,
+            files_added=files,
+        ))
     return events
 
 
@@ -514,33 +522,44 @@ def _short(s: str, n: int = 60) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
-def main() -> None:
-    events = build_events()
-    assert len(events) == 50, f"expected 50 events, got {len(events)}"
+def write_depth(depth: int) -> None:
+    events = build_events(depth)
+    assert len(events) == depth, f"expected {depth} events, got {len(events)}"
 
     raw = render_raw_append(events)
     live, archive = render_dreamed(events, dream_every=5, trim_mode="none")
     live_trim, archive_trim = render_dreamed(events, dream_every=5, trim_mode="aggressive")
     prose = render_prose_summary(events)
 
-    (HERE / "raw-append-50.clm").write_text(raw)
-    (HERE / "dreamed-sibling-50.clm").write_text(live)
-    (HERE / "dreamed-sibling-50.archive.clm").write_text(archive)
-    (HERE / "dreamed-sibling-50-trim.clm").write_text(live_trim)
-    (HERE / "dreamed-sibling-50-trim.archive.clm").write_text(archive_trim)
-    (HERE / "prose-summary-50.md").write_text(prose)
+    (HERE / f"raw-append-{depth}.clm").write_text(raw)
+    (HERE / f"dreamed-sibling-{depth}.clm").write_text(live)
+    (HERE / f"dreamed-sibling-{depth}.archive.clm").write_text(archive)
+    (HERE / f"dreamed-sibling-{depth}-trim.clm").write_text(live_trim)
+    (HERE / f"dreamed-sibling-{depth}-trim.archive.clm").write_text(archive_trim)
+    (HERE / f"prose-summary-{depth}.md").write_text(prose)
 
-    print("wrote:")
+    print(f"wrote depth={depth}:")
     for name in [
-        "raw-append-50.clm",
-        "dreamed-sibling-50.clm",
-        "dreamed-sibling-50.archive.clm",
-        "dreamed-sibling-50-trim.clm",
-        "dreamed-sibling-50-trim.archive.clm",
-        "prose-summary-50.md",
+        f"raw-append-{depth}.clm",
+        f"dreamed-sibling-{depth}.clm",
+        f"dreamed-sibling-{depth}.archive.clm",
+        f"dreamed-sibling-{depth}-trim.clm",
+        f"dreamed-sibling-{depth}-trim.archive.clm",
+        f"prose-summary-{depth}.md",
     ]:
         path = HERE / name
         print(f"  {name:<42}{path.stat().st_size:>8} bytes")
+
+
+def main() -> None:
+    import sys
+    if len(sys.argv) > 1:
+        depths = [int(a) for a in sys.argv[1:]]
+    else:
+        depths = [50, 200]
+    for d in depths:
+        write_depth(d)
+        print()
 
 
 if __name__ == "__main__":

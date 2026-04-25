@@ -1,0 +1,1838 @@
+;;; CLM/2.1 — handoff thread (raw append, 50 sessions, no dream)
+;;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50
+;;; archive.mode: none (raw)
+;;; ---
+
+[FOR.YOU]
+  > most-recent -> next | end of thread:
+  fifty-session thread: auth-extraction -> hardening -> oauth -> mfa -> security-audit.
+  shipped: v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0.
+  read [ROLL.CALL] for full lineage; ten authors across five families.
+;;
+
+[ROLL.CALL]
+  CLd.Snt4.6 · 2026-04-21 · "session 1: relocate auth from web/server.go -> internal/auth/middlewar…"
+  CLd.Ops4.6 · 2026-04-22 · "session 2: rename AuthCheck -> RequireAuth (matches new convention)"
+  CLd.Snt4.5 · 2026-04-23 · "session 3: rate-limiter NOT refactored in this scope (out-of-scope)"
+  CLd.Ops4.7 · 2026-04-24 · "session 4: legacy session-cookie path PRESERVED in middleware (deferre…"
+  Cdx.5.4 · 2026-04-25 · "session 5: investigate CI flake before merge"
+  Cdx.5.4-codex · 2026-04-26 · "session 6: fix flake by isolating test fixtures"
+  GPT.5.4 · 2026-04-27 · "session 7: delete legacy session-cookie path under build tag"
+  Gem.2.5 · 2026-04-28 · "session 8: rate-limiter in NEW package internal/ratelimit, not in auth"
+  Lla.4 · 2026-04-29 · "session 9: middleware composition via Chain(...) helper"
+  Kmi.K2 · 2026-04-30 · "session 10: ship as v0.4.0"
+  CLd.Snt4.6 · 2026-05-01 · "session 11: fix CSRF token regression in /api/login"
+  CLd.Ops4.6 · 2026-05-02 · "session 12: expand session timeout config to per-route"
+  CLd.Snt4.5 · 2026-05-03 · "session 13: add audit log for failed auth attempts"
+  CLd.Ops4.7 · 2026-05-04 · "session 14: rate-limit threshold reduced 100/min -> 60/min"
+  Cdx.5.4 · 2026-05-05 · "session 15: revert rate-limit threshold change (false positives)"
+  Cdx.5.4-codex · 2026-05-06 · "session 16: structured logging for auth path (zerolog)"
+  GPT.5.4 · 2026-05-07 · "session 17: benchmark: middleware chain hot-path latency"
+  Gem.2.5 · 2026-05-08 · "session 18: cache RequireAuth result for duration of request"
+  Lla.4 · 2026-05-09 · "session 19: add metrics: auth_success_total, auth_failure_total"
+  Kmi.K2 · 2026-05-10 · "session 20: post-launch bugs closed; ship v0.4.1"
+  CLd.Snt4.6 · 2026-05-11 · "session 21: add OAuth provider registry (Google, GitHub, GitLab)"
+  CLd.Ops4.6 · 2026-05-12 · "session 22: OAuth callback under /auth/oauth/<provider>/callback"
+  CLd.Snt4.5 · 2026-05-13 · "session 23: session token: JWT signed RS256 (was: opaque random)"
+  CLd.Ops4.7 · 2026-05-14 · "session 24: revert RS256: use HS512 (operational simplicity)"
+  Cdx.5.4 · 2026-05-15 · "session 25: OAuth state param: encrypted user-intent payload"
+  Cdx.5.4-codex · 2026-05-16 · "session 26: rate-limit OAuth callbacks separately (5/min/IP)"
+  GPT.5.4 · 2026-05-17 · "session 27: add provider-specific scope mapping"
+  Gem.2.5 · 2026-05-18 · "session 28: integration tests against mock OAuth servers"
+  Lla.4 · 2026-05-19 · "session 29: documentation: OAuth provider onboarding"
+  Kmi.K2 · 2026-05-20 · "session 30: ship OAuth as v0.5.0"
+  CLd.Snt4.6 · 2026-05-21 · "session 31: MFA: TOTP via authenticator apps (RFC 6238)"
+  CLd.Ops4.6 · 2026-05-22 · "session 32: backup codes: 10 single-use codes per user"
+  CLd.Snt4.5 · 2026-05-23 · "session 33: MFA enrollment flow: scan QR, enter 6-digit code twice"
+  CLd.Ops4.7 · 2026-05-24 · "session 34: recovery flow: backup code OR support ticket (no SMS)"
+  Cdx.5.4 · 2026-05-25 · "session 35: decline SMS MFA (security risk per NIST 800-63B)"
+  Cdx.5.4-codex · 2026-05-26 · "session 36: MFA-required policy configurable per role"
+  GPT.5.4 · 2026-05-27 · "session 37: rate-limit MFA attempts: 5 attempts then 15-min lockout"
+  Gem.2.5 · 2026-05-28 · "session 38: audit log MFA enable/disable events"
+  Lla.4 · 2026-05-29 · "session 39: WebAuthn passkey support deferred to v0.7"
+  Kmi.K2 · 2026-05-30 · "session 40: ship MFA as v0.6.0"
+  CLd.Snt4.6 · 2026-06-01 · "session 41: third-party security audit by Trail of Bits"
+  CLd.Ops4.6 · 2026-06-02 · "session 42: audit findings: CVE-class issue in JWT verify (HS512 -> RS2…"
+  CLd.Snt4.5 · 2026-06-03 · "session 43: backport JWT migration to v0.6.x"
+  CLd.Ops4.7 · 2026-06-04 · "session 44: performance: middleware chain p95 800us -> 120us"
+  Cdx.5.4 · 2026-06-05 · "session 45: memory: session cache pool sync.Pool"
+  Cdx.5.4-codex · 2026-06-06 · "session 46: compile flags: -trimpath, -buildvcs=false"
+  GPT.5.4 · 2026-06-07 · "session 47: supply chain: govulncheck in CI"
+  Gem.2.5 · 2026-06-08 · "session 48: OWASP top 10 checklist: pass with one note (rate-limit on /…"
+  Lla.4 · 2026-06-09 · "session 49: audit closed; CVE patched in v0.6.1"
+  Kmi.K2 · 2026-06-10 · "session 50: ship v0.7.0 with WebAuthn passkey"
+  CLd.Snt4.6 · 2026-06-11 · "session 51: relocate auth from web/server.go -> internal/auth/middlewar…"
+  CLd.Ops4.6 · 2026-06-12 · "session 52: rename AuthCheck -> RequireAuth (matches new convention) (c…"
+  CLd.Snt4.5 · 2026-06-13 · "session 53: rate-limiter NOT refactored in this scope (out-of-scope) (c…"
+  CLd.Ops4.7 · 2026-06-14 · "session 54: legacy session-cookie path PRESERVED in middleware (deferre…"
+  Cdx.5.4 · 2026-06-15 · "session 55: investigate CI flake before merge (cycle 2)"
+  Cdx.5.4-codex · 2026-06-16 · "session 56: fix flake by isolating test fixtures (cycle 2)"
+  GPT.5.4 · 2026-06-17 · "session 57: delete legacy session-cookie path under build tag (cycle 2)"
+  Gem.2.5 · 2026-06-18 · "session 58: rate-limiter in NEW package internal/ratelimit, not in auth…"
+  Lla.4 · 2026-06-19 · "session 59: middleware composition via Chain(...) helper (cycle 2)"
+  Kmi.K2 · 2026-06-20 · "session 60: ship as v0.4.0 (cycle 2)"
+  CLd.Snt4.6 · 2026-06-21 · "session 61: fix CSRF token regression in /api/login (cycle 2)"
+  CLd.Ops4.6 · 2026-06-22 · "session 62: expand session timeout config to per-route (cycle 2)"
+  CLd.Snt4.5 · 2026-06-23 · "session 63: add audit log for failed auth attempts (cycle 2)"
+  CLd.Ops4.7 · 2026-06-24 · "session 64: rate-limit threshold reduced 100/min -> 60/min (cycle 2)"
+  Cdx.5.4 · 2026-06-25 · "session 65: revert rate-limit threshold change (false positives) (cycle…"
+  Cdx.5.4-codex · 2026-06-26 · "session 66: structured logging for auth path (zerolog) (cycle 2)"
+  GPT.5.4 · 2026-06-27 · "session 67: benchmark: middleware chain hot-path latency (cycle 2)"
+  Gem.2.5 · 2026-06-28 · "session 68: cache RequireAuth result for duration of request (cycle 2)"
+  Lla.4 · 2026-06-29 · "session 69: add metrics: auth_success_total, auth_failure_total (cycle …"
+  Kmi.K2 · 2026-06-30 · "session 70: post-launch bugs closed; ship v0.4.1 (cycle 2)"
+  CLd.Snt4.6 · 2026-07-01 · "session 71: add OAuth provider registry (Google, GitHub, GitLab) (cycle…"
+  CLd.Ops4.6 · 2026-07-02 · "session 72: OAuth callback under /auth/oauth/<provider>/callback (cycle…"
+  CLd.Snt4.5 · 2026-07-03 · "session 73: session token: JWT signed RS256 (was: opaque random) (cycle…"
+  CLd.Ops4.7 · 2026-07-04 · "session 74: revert RS256: use HS512 (operational simplicity) (cycle 2)"
+  Cdx.5.4 · 2026-07-05 · "session 75: OAuth state param: encrypted user-intent payload (cycle 2)"
+  Cdx.5.4-codex · 2026-07-06 · "session 76: rate-limit OAuth callbacks separately (5/min/IP) (cycle 2)"
+  GPT.5.4 · 2026-07-07 · "session 77: add provider-specific scope mapping (cycle 2)"
+  Gem.2.5 · 2026-07-08 · "session 78: integration tests against mock OAuth servers (cycle 2)"
+  Lla.4 · 2026-07-09 · "session 79: documentation: OAuth provider onboarding (cycle 2)"
+  Kmi.K2 · 2026-07-10 · "session 80: ship OAuth as v0.5.0 (cycle 2)"
+  CLd.Snt4.6 · 2026-07-11 · "session 81: MFA: TOTP via authenticator apps (RFC 6238) (cycle 2)"
+  CLd.Ops4.6 · 2026-07-12 · "session 82: backup codes: 10 single-use codes per user (cycle 2)"
+  CLd.Snt4.5 · 2026-07-13 · "session 83: MFA enrollment flow: scan QR, enter 6-digit code twice (cyc…"
+  CLd.Ops4.7 · 2026-07-14 · "session 84: recovery flow: backup code OR support ticket (no SMS) (cycl…"
+  Cdx.5.4 · 2026-07-15 · "session 85: decline SMS MFA (security risk per NIST 800-63B) (cycle 2)"
+  Cdx.5.4-codex · 2026-07-16 · "session 86: MFA-required policy configurable per role (cycle 2)"
+  GPT.5.4 · 2026-07-17 · "session 87: rate-limit MFA attempts: 5 attempts then 15-min lockout (cy…"
+  Gem.2.5 · 2026-07-18 · "session 88: audit log MFA enable/disable events (cycle 2)"
+  Lla.4 · 2026-07-19 · "session 89: WebAuthn passkey support deferred to v0.7 (cycle 2)"
+  Kmi.K2 · 2026-07-20 · "session 90: ship MFA as v0.6.0 (cycle 2)"
+  CLd.Snt4.6 · 2026-07-21 · "session 91: third-party security audit by Trail of Bits (cycle 2)"
+  CLd.Ops4.6 · 2026-07-22 · "session 92: audit findings: CVE-class issue in JWT verify (HS512 -> RS2…"
+  CLd.Snt4.5 · 2026-07-23 · "session 93: backport JWT migration to v0.6.x (cycle 2)"
+  CLd.Ops4.7 · 2026-07-24 · "session 94: performance: middleware chain p95 800us -> 120us (cycle 2)"
+  Cdx.5.4 · 2026-07-25 · "session 95: memory: session cache pool sync.Pool (cycle 2)"
+  Cdx.5.4-codex · 2026-07-26 · "session 96: compile flags: -trimpath, -buildvcs=false (cycle 2)"
+  GPT.5.4 · 2026-07-27 · "session 97: supply chain: govulncheck in CI (cycle 2)"
+  Gem.2.5 · 2026-07-28 · "session 98: OWASP top 10 checklist: pass with one note (rate-limit on /…"
+  Lla.4 · 2026-07-29 · "session 99: audit closed; CVE patched in v0.6.1 (cycle 2)"
+  Kmi.K2 · 2026-07-30 · "session 100: ship v0.7.0 with WebAuthn passkey (cycle 2)"
+  CLd.Snt4.6 · 2026-08-01 · "session 101: relocate auth from web/server.go -> internal/auth/middlewar…"
+  CLd.Ops4.6 · 2026-08-02 · "session 102: rename AuthCheck -> RequireAuth (matches new convention) (c…"
+  CLd.Snt4.5 · 2026-08-03 · "session 103: rate-limiter NOT refactored in this scope (out-of-scope) (c…"
+  CLd.Ops4.7 · 2026-08-04 · "session 104: legacy session-cookie path PRESERVED in middleware (deferre…"
+  Cdx.5.4 · 2026-08-05 · "session 105: investigate CI flake before merge (cycle 3)"
+  Cdx.5.4-codex · 2026-08-06 · "session 106: fix flake by isolating test fixtures (cycle 3)"
+  GPT.5.4 · 2026-08-07 · "session 107: delete legacy session-cookie path under build tag (cycle 3)"
+  Gem.2.5 · 2026-08-08 · "session 108: rate-limiter in NEW package internal/ratelimit, not in auth…"
+  Lla.4 · 2026-08-09 · "session 109: middleware composition via Chain(...) helper (cycle 3)"
+  Kmi.K2 · 2026-08-10 · "session 110: ship as v0.4.0 (cycle 3)"
+  CLd.Snt4.6 · 2026-08-11 · "session 111: fix CSRF token regression in /api/login (cycle 3)"
+  CLd.Ops4.6 · 2026-08-12 · "session 112: expand session timeout config to per-route (cycle 3)"
+  CLd.Snt4.5 · 2026-08-13 · "session 113: add audit log for failed auth attempts (cycle 3)"
+  CLd.Ops4.7 · 2026-08-14 · "session 114: rate-limit threshold reduced 100/min -> 60/min (cycle 3)"
+  Cdx.5.4 · 2026-08-15 · "session 115: revert rate-limit threshold change (false positives) (cycle…"
+  Cdx.5.4-codex · 2026-08-16 · "session 116: structured logging for auth path (zerolog) (cycle 3)"
+  GPT.5.4 · 2026-08-17 · "session 117: benchmark: middleware chain hot-path latency (cycle 3)"
+  Gem.2.5 · 2026-08-18 · "session 118: cache RequireAuth result for duration of request (cycle 3)"
+  Lla.4 · 2026-08-19 · "session 119: add metrics: auth_success_total, auth_failure_total (cycle …"
+  Kmi.K2 · 2026-08-20 · "session 120: post-launch bugs closed; ship v0.4.1 (cycle 3)"
+  CLd.Snt4.6 · 2026-08-21 · "session 121: add OAuth provider registry (Google, GitHub, GitLab) (cycle…"
+  CLd.Ops4.6 · 2026-08-22 · "session 122: OAuth callback under /auth/oauth/<provider>/callback (cycle…"
+  CLd.Snt4.5 · 2026-08-23 · "session 123: session token: JWT signed RS256 (was: opaque random) (cycle…"
+  CLd.Ops4.7 · 2026-08-24 · "session 124: revert RS256: use HS512 (operational simplicity) (cycle 3)"
+  Cdx.5.4 · 2026-08-25 · "session 125: OAuth state param: encrypted user-intent payload (cycle 3)"
+  Cdx.5.4-codex · 2026-08-26 · "session 126: rate-limit OAuth callbacks separately (5/min/IP) (cycle 3)"
+  GPT.5.4 · 2026-08-27 · "session 127: add provider-specific scope mapping (cycle 3)"
+  Gem.2.5 · 2026-08-28 · "session 128: integration tests against mock OAuth servers (cycle 3)"
+  Lla.4 · 2026-08-29 · "session 129: documentation: OAuth provider onboarding (cycle 3)"
+  Kmi.K2 · 2026-08-30 · "session 130: ship OAuth as v0.5.0 (cycle 3)"
+  CLd.Snt4.6 · 2026-09-01 · "session 131: MFA: TOTP via authenticator apps (RFC 6238) (cycle 3)"
+  CLd.Ops4.6 · 2026-09-02 · "session 132: backup codes: 10 single-use codes per user (cycle 3)"
+  CLd.Snt4.5 · 2026-09-03 · "session 133: MFA enrollment flow: scan QR, enter 6-digit code twice (cyc…"
+  CLd.Ops4.7 · 2026-09-04 · "session 134: recovery flow: backup code OR support ticket (no SMS) (cycl…"
+  Cdx.5.4 · 2026-09-05 · "session 135: decline SMS MFA (security risk per NIST 800-63B) (cycle 3)"
+  Cdx.5.4-codex · 2026-09-06 · "session 136: MFA-required policy configurable per role (cycle 3)"
+  GPT.5.4 · 2026-09-07 · "session 137: rate-limit MFA attempts: 5 attempts then 15-min lockout (cy…"
+  Gem.2.5 · 2026-09-08 · "session 138: audit log MFA enable/disable events (cycle 3)"
+  Lla.4 · 2026-09-09 · "session 139: WebAuthn passkey support deferred to v0.7 (cycle 3)"
+  Kmi.K2 · 2026-09-10 · "session 140: ship MFA as v0.6.0 (cycle 3)"
+  CLd.Snt4.6 · 2026-09-11 · "session 141: third-party security audit by Trail of Bits (cycle 3)"
+  CLd.Ops4.6 · 2026-09-12 · "session 142: audit findings: CVE-class issue in JWT verify (HS512 -> RS2…"
+  CLd.Snt4.5 · 2026-09-13 · "session 143: backport JWT migration to v0.6.x (cycle 3)"
+  CLd.Ops4.7 · 2026-09-14 · "session 144: performance: middleware chain p95 800us -> 120us (cycle 3)"
+  Cdx.5.4 · 2026-09-15 · "session 145: memory: session cache pool sync.Pool (cycle 3)"
+  Cdx.5.4-codex · 2026-09-16 · "session 146: compile flags: -trimpath, -buildvcs=false (cycle 3)"
+  GPT.5.4 · 2026-09-17 · "session 147: supply chain: govulncheck in CI (cycle 3)"
+  Gem.2.5 · 2026-09-18 · "session 148: OWASP top 10 checklist: pass with one note (rate-limit on /…"
+  Lla.4 · 2026-09-19 · "session 149: audit closed; CVE patched in v0.6.1 (cycle 3)"
+  Kmi.K2 · 2026-09-20 · "session 150: ship v0.7.0 with WebAuthn passkey (cycle 3)"
+  CLd.Snt4.6 · 2026-09-21 · "session 151: relocate auth from web/server.go -> internal/auth/middlewar…"
+  CLd.Ops4.6 · 2026-09-22 · "session 152: rename AuthCheck -> RequireAuth (matches new convention) (c…"
+  CLd.Snt4.5 · 2026-09-23 · "session 153: rate-limiter NOT refactored in this scope (out-of-scope) (c…"
+  CLd.Ops4.7 · 2026-09-24 · "session 154: legacy session-cookie path PRESERVED in middleware (deferre…"
+  Cdx.5.4 · 2026-09-25 · "session 155: investigate CI flake before merge (cycle 4)"
+  Cdx.5.4-codex · 2026-09-26 · "session 156: fix flake by isolating test fixtures (cycle 4)"
+  GPT.5.4 · 2026-09-27 · "session 157: delete legacy session-cookie path under build tag (cycle 4)"
+  Gem.2.5 · 2026-09-28 · "session 158: rate-limiter in NEW package internal/ratelimit, not in auth…"
+  Lla.4 · 2026-09-29 · "session 159: middleware composition via Chain(...) helper (cycle 4)"
+  Kmi.K2 · 2026-09-30 · "session 160: ship as v0.4.0 (cycle 4)"
+  CLd.Snt4.6 · 2026-10-01 · "session 161: fix CSRF token regression in /api/login (cycle 4)"
+  CLd.Ops4.6 · 2026-10-02 · "session 162: expand session timeout config to per-route (cycle 4)"
+  CLd.Snt4.5 · 2026-10-03 · "session 163: add audit log for failed auth attempts (cycle 4)"
+  CLd.Ops4.7 · 2026-10-04 · "session 164: rate-limit threshold reduced 100/min -> 60/min (cycle 4)"
+  Cdx.5.4 · 2026-10-05 · "session 165: revert rate-limit threshold change (false positives) (cycle…"
+  Cdx.5.4-codex · 2026-10-06 · "session 166: structured logging for auth path (zerolog) (cycle 4)"
+  GPT.5.4 · 2026-10-07 · "session 167: benchmark: middleware chain hot-path latency (cycle 4)"
+  Gem.2.5 · 2026-10-08 · "session 168: cache RequireAuth result for duration of request (cycle 4)"
+  Lla.4 · 2026-10-09 · "session 169: add metrics: auth_success_total, auth_failure_total (cycle …"
+  Kmi.K2 · 2026-10-10 · "session 170: post-launch bugs closed; ship v0.4.1 (cycle 4)"
+  CLd.Snt4.6 · 2026-10-11 · "session 171: add OAuth provider registry (Google, GitHub, GitLab) (cycle…"
+  CLd.Ops4.6 · 2026-10-12 · "session 172: OAuth callback under /auth/oauth/<provider>/callback (cycle…"
+  CLd.Snt4.5 · 2026-10-13 · "session 173: session token: JWT signed RS256 (was: opaque random) (cycle…"
+  CLd.Ops4.7 · 2026-10-14 · "session 174: revert RS256: use HS512 (operational simplicity) (cycle 4)"
+  Cdx.5.4 · 2026-10-15 · "session 175: OAuth state param: encrypted user-intent payload (cycle 4)"
+  Cdx.5.4-codex · 2026-10-16 · "session 176: rate-limit OAuth callbacks separately (5/min/IP) (cycle 4)"
+  GPT.5.4 · 2026-10-17 · "session 177: add provider-specific scope mapping (cycle 4)"
+  Gem.2.5 · 2026-10-18 · "session 178: integration tests against mock OAuth servers (cycle 4)"
+  Lla.4 · 2026-10-19 · "session 179: documentation: OAuth provider onboarding (cycle 4)"
+  Kmi.K2 · 2026-10-20 · "session 180: ship OAuth as v0.5.0 (cycle 4)"
+  CLd.Snt4.6 · 2026-10-21 · "session 181: MFA: TOTP via authenticator apps (RFC 6238) (cycle 4)"
+  CLd.Ops4.6 · 2026-10-22 · "session 182: backup codes: 10 single-use codes per user (cycle 4)"
+  CLd.Snt4.5 · 2026-10-23 · "session 183: MFA enrollment flow: scan QR, enter 6-digit code twice (cyc…"
+  CLd.Ops4.7 · 2026-10-24 · "session 184: recovery flow: backup code OR support ticket (no SMS) (cycl…"
+  Cdx.5.4 · 2026-10-25 · "session 185: decline SMS MFA (security risk per NIST 800-63B) (cycle 4)"
+  Cdx.5.4-codex · 2026-10-26 · "session 186: MFA-required policy configurable per role (cycle 4)"
+  GPT.5.4 · 2026-10-27 · "session 187: rate-limit MFA attempts: 5 attempts then 15-min lockout (cy…"
+  Gem.2.5 · 2026-10-28 · "session 188: audit log MFA enable/disable events (cycle 4)"
+  Lla.4 · 2026-10-29 · "session 189: WebAuthn passkey support deferred to v0.7 (cycle 4)"
+  Kmi.K2 · 2026-10-30 · "session 190: ship MFA as v0.6.0 (cycle 4)"
+  CLd.Snt4.6 · 2026-11-01 · "session 191: third-party security audit by Trail of Bits (cycle 4)"
+  CLd.Ops4.6 · 2026-11-02 · "session 192: audit findings: CVE-class issue in JWT verify (HS512 -> RS2…"
+  CLd.Snt4.5 · 2026-11-03 · "session 193: backport JWT migration to v0.6.x (cycle 4)"
+  CLd.Ops4.7 · 2026-11-04 · "session 194: performance: middleware chain p95 800us -> 120us (cycle 4)"
+  Cdx.5.4 · 2026-11-05 · "session 195: memory: session cache pool sync.Pool (cycle 4)"
+  Cdx.5.4-codex · 2026-11-06 · "session 196: compile flags: -trimpath, -buildvcs=false (cycle 4)"
+  GPT.5.4 · 2026-11-07 · "session 197: supply chain: govulncheck in CI (cycle 4)"
+  Gem.2.5 · 2026-11-08 · "session 198: OWASP top 10 checklist: pass with one note (rate-limit on /…"
+  Lla.4 · 2026-11-09 · "session 199: audit closed; CVE patched in v0.6.1 (cycle 4)"
+  Kmi.K2 · 2026-11-10 · "session 200: ship v0.7.0 with WebAuthn passkey (cycle 4)"
+
+;;
+
+[SESSION.1]
+  ;; CLd.Snt4.6 | 2026-04-21:
+  d1: relocate auth from web/server.go -> internal/auth/middleware.go
+  file.touched: web/server.go
+  status: in-progress
+;;
+
+[SESSION.2]
+  ;; CLd.Ops4.6 | 2026-04-22:
+  d2: rename AuthCheck -> RequireAuth (matches new convention)
+  file.touched: internal/auth/middleware.go
+  status: in-progress
+;;
+
+[SESSION.3]
+  ;; CLd.Snt4.5 | 2026-04-23:
+  d3: rate-limiter NOT refactored in this scope (out-of-scope)
+  file.touched: internal/auth/middleware_test.go
+  status: in-progress
+;;
+
+[SESSION.4]
+  ;; CLd.Ops4.7 | 2026-04-24:
+  d4: legacy session-cookie path PRESERVED in middleware (deferred)
+  file.touched: web/server_test.go
+  status: in-progress
+;;
+
+[SESSION.5]
+  ;; Cdx.5.4 | 2026-04-25:
+  d5: investigate CI flake before merge
+  file.touched: internal/auth/integration_test.go
+  status: in-progress
+;;
+
+[SESSION.6]
+  ;; Cdx.5.4-codex | 2026-04-26:
+  d6: fix flake by isolating test fixtures
+  file.touched: internal/ratelimit/middleware.go
+  status: in-progress
+;;
+
+[SESSION.7]
+  ;; GPT.5.4 | 2026-04-27:
+  d7: delete legacy session-cookie path under build tag
+  relation: revert d4
+  file.touched: internal/ratelimit/middleware_test.go
+  status: in-progress
+;;
+
+[SESSION.8]
+  ;; Gem.2.5 | 2026-04-28:
+  d8: rate-limiter in NEW package internal/ratelimit, not in auth
+  relation: supersede d3
+  file.touched: internal/middleware/chain.go
+  status: in-progress
+;;
+
+[SESSION.9]
+  ;; Lla.4 | 2026-04-29:
+  d9: middleware composition via Chain(...) helper
+  file.touched: web/server.go
+  status: in-progress
+;;
+
+[SESSION.10]
+  ;; Kmi.K2 | 2026-04-30:
+  d10: ship as v0.4.0
+  file.touched: internal/auth/middleware.go
+  status: ready-to-merge
+;;
+
+[SESSION.11]
+  ;; CLd.Snt4.6 | 2026-05-01:
+  d11: fix CSRF token regression in /api/login
+  file.touched: internal/auth/csrf.go
+  status: in-progress
+;;
+
+[SESSION.12]
+  ;; CLd.Ops4.6 | 2026-05-02:
+  d12: expand session timeout config to per-route
+  file.touched: internal/auth/csrf_test.go
+  status: in-progress
+;;
+
+[SESSION.13]
+  ;; CLd.Snt4.5 | 2026-05-03:
+  d13: add audit log for failed auth attempts
+  file.touched: internal/auth/audit.go
+  status: in-progress
+;;
+
+[SESSION.14]
+  ;; CLd.Ops4.7 | 2026-05-04:
+  d14: rate-limit threshold reduced 100/min -> 60/min
+  file.touched: internal/auth/audit_test.go
+  status: in-progress
+;;
+
+[SESSION.15]
+  ;; Cdx.5.4 | 2026-05-05:
+  d15: revert rate-limit threshold change (false positives)
+  relation: revert d14
+  file.touched: internal/ratelimit/config.go
+  status: in-progress
+;;
+
+[SESSION.16]
+  ;; Cdx.5.4-codex | 2026-05-06:
+  d16: structured logging for auth path (zerolog)
+  file.touched: internal/auth/cache.go
+  status: in-progress
+;;
+
+[SESSION.17]
+  ;; GPT.5.4 | 2026-05-07:
+  d17: benchmark: middleware chain hot-path latency
+  file.touched: internal/middleware/metrics.go
+  status: in-progress
+;;
+
+[SESSION.18]
+  ;; Gem.2.5 | 2026-05-08:
+  d18: cache RequireAuth result for duration of request
+  file.touched: cmd/server/main.go
+  status: in-progress
+;;
+
+[SESSION.19]
+  ;; Lla.4 | 2026-05-09:
+  d19: add metrics: auth_success_total, auth_failure_total
+  file.touched: internal/auth/csrf.go
+  status: in-progress
+;;
+
+[SESSION.20]
+  ;; Kmi.K2 | 2026-05-10:
+  d20: post-launch bugs closed; ship v0.4.1
+  file.touched: internal/auth/csrf_test.go
+  status: ready-to-merge
+;;
+
+[SESSION.21]
+  ;; CLd.Snt4.6 | 2026-05-11:
+  d21: add OAuth provider registry (Google, GitHub, GitLab)
+  file.touched: internal/oauth/registry.go
+  status: in-progress
+;;
+
+[SESSION.22]
+  ;; CLd.Ops4.6 | 2026-05-12:
+  d22: OAuth callback under /auth/oauth/<provider>/callback
+  file.touched: internal/oauth/google.go
+  status: in-progress
+;;
+
+[SESSION.23]
+  ;; CLd.Snt4.5 | 2026-05-13:
+  d23: session token: JWT signed RS256 (was: opaque random)
+  file.touched: internal/oauth/github.go
+  status: in-progress
+;;
+
+[SESSION.24]
+  ;; CLd.Ops4.7 | 2026-05-14:
+  d24: revert RS256: use HS512 (operational simplicity)
+  relation: revert d23
+  file.touched: internal/oauth/gitlab.go
+  status: in-progress
+;;
+
+[SESSION.25]
+  ;; Cdx.5.4 | 2026-05-15:
+  d25: OAuth state param: encrypted user-intent payload
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.26]
+  ;; Cdx.5.4-codex | 2026-05-16:
+  d26: rate-limit OAuth callbacks separately (5/min/IP)
+  file.touched: internal/oauth/state.go
+  status: in-progress
+;;
+
+[SESSION.27]
+  ;; GPT.5.4 | 2026-05-17:
+  d27: add provider-specific scope mapping
+  file.touched: internal/oauth/scope.go
+  status: in-progress
+;;
+
+[SESSION.28]
+  ;; Gem.2.5 | 2026-05-18:
+  d28: integration tests against mock OAuth servers
+  file.touched: internal/oauth/integration_test.go
+  status: in-progress
+;;
+
+[SESSION.29]
+  ;; Lla.4 | 2026-05-19:
+  d29: documentation: OAuth provider onboarding
+  file.touched: docs/oauth-onboarding.md
+  status: in-progress
+;;
+
+[SESSION.30]
+  ;; Kmi.K2 | 2026-05-20:
+  d30: ship OAuth as v0.5.0
+  file.touched: internal/oauth/registry.go
+  status: ready-to-merge
+;;
+
+[SESSION.31]
+  ;; CLd.Snt4.6 | 2026-05-21:
+  d31: MFA: TOTP via authenticator apps (RFC 6238)
+  file.touched: internal/mfa/totp.go
+  status: in-progress
+;;
+
+[SESSION.32]
+  ;; CLd.Ops4.6 | 2026-05-22:
+  d32: backup codes: 10 single-use codes per user
+  file.touched: internal/mfa/totp_test.go
+  status: in-progress
+;;
+
+[SESSION.33]
+  ;; CLd.Snt4.5 | 2026-05-23:
+  d33: MFA enrollment flow: scan QR, enter 6-digit code twice
+  file.touched: internal/mfa/backup_codes.go
+  status: in-progress
+;;
+
+[SESSION.34]
+  ;; CLd.Ops4.7 | 2026-05-24:
+  d34: recovery flow: backup code OR support ticket (no SMS)
+  file.touched: internal/mfa/enrollment.go
+  status: in-progress
+;;
+
+[SESSION.35]
+  ;; Cdx.5.4 | 2026-05-25:
+  d35: decline SMS MFA (security risk per NIST 800-63B)
+  file.touched: internal/mfa/policy.go
+  status: in-progress
+;;
+
+[SESSION.36]
+  ;; Cdx.5.4-codex | 2026-05-26:
+  d36: MFA-required policy configurable per role
+  file.touched: internal/mfa/recovery.go
+  status: in-progress
+;;
+
+[SESSION.37]
+  ;; GPT.5.4 | 2026-05-27:
+  d37: rate-limit MFA attempts: 5 attempts then 15-min lockout
+  file.touched: internal/mfa/audit.go
+  status: in-progress
+;;
+
+[SESSION.38]
+  ;; Gem.2.5 | 2026-05-28:
+  d38: audit log MFA enable/disable events
+  file.touched: docs/mfa-faq.md
+  status: in-progress
+;;
+
+[SESSION.39]
+  ;; Lla.4 | 2026-05-29:
+  d39: WebAuthn passkey support deferred to v0.7
+  file.touched: internal/mfa/totp.go
+  status: in-progress
+;;
+
+[SESSION.40]
+  ;; Kmi.K2 | 2026-05-30:
+  d40: ship MFA as v0.6.0
+  file.touched: internal/mfa/totp_test.go
+  status: ready-to-merge
+;;
+
+[SESSION.41]
+  ;; CLd.Snt4.6 | 2026-06-01:
+  d41: third-party security audit by Trail of Bits
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.42]
+  ;; CLd.Ops4.6 | 2026-06-02:
+  d42: audit findings: CVE-class issue in JWT verify (HS512 -> RS256)
+  relation: revert d24
+  file.touched: internal/auth/cache.go
+  status: in-progress
+;;
+
+[SESSION.43]
+  ;; CLd.Snt4.5 | 2026-06-03:
+  d43: backport JWT migration to v0.6.x
+  file.touched: internal/middleware/chain.go
+  status: in-progress
+;;
+
+[SESSION.44]
+  ;; CLd.Ops4.7 | 2026-06-04:
+  d44: performance: middleware chain p95 800us -> 120us
+  file.touched: Makefile
+  status: in-progress
+;;
+
+[SESSION.45]
+  ;; Cdx.5.4 | 2026-06-05:
+  d45: memory: session cache pool sync.Pool
+  file.touched: .github/workflows/security.yml
+  status: in-progress
+;;
+
+[SESSION.46]
+  ;; Cdx.5.4-codex | 2026-06-06:
+  d46: compile flags: -trimpath, -buildvcs=false
+  file.touched: internal/auth/reset.go
+  status: in-progress
+;;
+
+[SESSION.47]
+  ;; GPT.5.4 | 2026-06-07:
+  d47: supply chain: govulncheck in CI
+  file.touched: internal/passkey/webauthn.go
+  status: in-progress
+;;
+
+[SESSION.48]
+  ;; Gem.2.5 | 2026-06-08:
+  d48: OWASP top 10 checklist: pass with one note (rate-limit on /reset)
+  file.touched: internal/passkey/registration.go
+  status: in-progress
+;;
+
+[SESSION.49]
+  ;; Lla.4 | 2026-06-09:
+  d49: audit closed; CVE patched in v0.6.1
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.50]
+  ;; Kmi.K2 | 2026-06-10:
+  d50: ship v0.7.0 with WebAuthn passkey
+  file.touched: internal/auth/cache.go
+  status: ready-to-merge
+;;
+
+[SESSION.51]
+  ;; CLd.Snt4.6 | 2026-06-11:
+  d51: relocate auth from web/server.go -> internal/auth/middleware.go (cycle 2)
+  file.touched: web/server.go
+  status: in-progress
+;;
+
+[SESSION.52]
+  ;; CLd.Ops4.6 | 2026-06-12:
+  d52: rename AuthCheck -> RequireAuth (matches new convention) (cycle 2)
+  file.touched: internal/auth/middleware.go
+  status: in-progress
+;;
+
+[SESSION.53]
+  ;; CLd.Snt4.5 | 2026-06-13:
+  d53: rate-limiter NOT refactored in this scope (out-of-scope) (cycle 2)
+  file.touched: internal/auth/middleware_test.go
+  status: in-progress
+;;
+
+[SESSION.54]
+  ;; CLd.Ops4.7 | 2026-06-14:
+  d54: legacy session-cookie path PRESERVED in middleware (deferred) (cycle 2)
+  file.touched: web/server_test.go
+  status: in-progress
+;;
+
+[SESSION.55]
+  ;; Cdx.5.4 | 2026-06-15:
+  d55: investigate CI flake before merge (cycle 2)
+  file.touched: internal/auth/integration_test.go
+  status: in-progress
+;;
+
+[SESSION.56]
+  ;; Cdx.5.4-codex | 2026-06-16:
+  d56: fix flake by isolating test fixtures (cycle 2)
+  file.touched: internal/ratelimit/middleware.go
+  status: in-progress
+;;
+
+[SESSION.57]
+  ;; GPT.5.4 | 2026-06-17:
+  d57: delete legacy session-cookie path under build tag (cycle 2)
+  relation: revert d4
+  file.touched: internal/ratelimit/middleware_test.go
+  status: in-progress
+;;
+
+[SESSION.58]
+  ;; Gem.2.5 | 2026-06-18:
+  d58: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 2)
+  relation: supersede d3
+  file.touched: internal/middleware/chain.go
+  status: in-progress
+;;
+
+[SESSION.59]
+  ;; Lla.4 | 2026-06-19:
+  d59: middleware composition via Chain(...) helper (cycle 2)
+  file.touched: web/server.go
+  status: in-progress
+;;
+
+[SESSION.60]
+  ;; Kmi.K2 | 2026-06-20:
+  d60: ship as v0.4.0 (cycle 2)
+  file.touched: internal/auth/middleware.go
+  status: ready-to-merge
+;;
+
+[SESSION.61]
+  ;; CLd.Snt4.6 | 2026-06-21:
+  d61: fix CSRF token regression in /api/login (cycle 2)
+  file.touched: internal/auth/csrf.go
+  status: in-progress
+;;
+
+[SESSION.62]
+  ;; CLd.Ops4.6 | 2026-06-22:
+  d62: expand session timeout config to per-route (cycle 2)
+  file.touched: internal/auth/csrf_test.go
+  status: in-progress
+;;
+
+[SESSION.63]
+  ;; CLd.Snt4.5 | 2026-06-23:
+  d63: add audit log for failed auth attempts (cycle 2)
+  file.touched: internal/auth/audit.go
+  status: in-progress
+;;
+
+[SESSION.64]
+  ;; CLd.Ops4.7 | 2026-06-24:
+  d64: rate-limit threshold reduced 100/min -> 60/min (cycle 2)
+  file.touched: internal/auth/audit_test.go
+  status: in-progress
+;;
+
+[SESSION.65]
+  ;; Cdx.5.4 | 2026-06-25:
+  d65: revert rate-limit threshold change (false positives) (cycle 2)
+  relation: revert d14
+  file.touched: internal/ratelimit/config.go
+  status: in-progress
+;;
+
+[SESSION.66]
+  ;; Cdx.5.4-codex | 2026-06-26:
+  d66: structured logging for auth path (zerolog) (cycle 2)
+  file.touched: internal/auth/cache.go
+  status: in-progress
+;;
+
+[SESSION.67]
+  ;; GPT.5.4 | 2026-06-27:
+  d67: benchmark: middleware chain hot-path latency (cycle 2)
+  file.touched: internal/middleware/metrics.go
+  status: in-progress
+;;
+
+[SESSION.68]
+  ;; Gem.2.5 | 2026-06-28:
+  d68: cache RequireAuth result for duration of request (cycle 2)
+  file.touched: cmd/server/main.go
+  status: in-progress
+;;
+
+[SESSION.69]
+  ;; Lla.4 | 2026-06-29:
+  d69: add metrics: auth_success_total, auth_failure_total (cycle 2)
+  file.touched: internal/auth/csrf.go
+  status: in-progress
+;;
+
+[SESSION.70]
+  ;; Kmi.K2 | 2026-06-30:
+  d70: post-launch bugs closed; ship v0.4.1 (cycle 2)
+  file.touched: internal/auth/csrf_test.go
+  status: ready-to-merge
+;;
+
+[SESSION.71]
+  ;; CLd.Snt4.6 | 2026-07-01:
+  d71: add OAuth provider registry (Google, GitHub, GitLab) (cycle 2)
+  file.touched: internal/oauth/registry.go
+  status: in-progress
+;;
+
+[SESSION.72]
+  ;; CLd.Ops4.6 | 2026-07-02:
+  d72: OAuth callback under /auth/oauth/<provider>/callback (cycle 2)
+  file.touched: internal/oauth/google.go
+  status: in-progress
+;;
+
+[SESSION.73]
+  ;; CLd.Snt4.5 | 2026-07-03:
+  d73: session token: JWT signed RS256 (was: opaque random) (cycle 2)
+  file.touched: internal/oauth/github.go
+  status: in-progress
+;;
+
+[SESSION.74]
+  ;; CLd.Ops4.7 | 2026-07-04:
+  d74: revert RS256: use HS512 (operational simplicity) (cycle 2)
+  relation: revert d23
+  file.touched: internal/oauth/gitlab.go
+  status: in-progress
+;;
+
+[SESSION.75]
+  ;; Cdx.5.4 | 2026-07-05:
+  d75: OAuth state param: encrypted user-intent payload (cycle 2)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.76]
+  ;; Cdx.5.4-codex | 2026-07-06:
+  d76: rate-limit OAuth callbacks separately (5/min/IP) (cycle 2)
+  file.touched: internal/oauth/state.go
+  status: in-progress
+;;
+
+[SESSION.77]
+  ;; GPT.5.4 | 2026-07-07:
+  d77: add provider-specific scope mapping (cycle 2)
+  file.touched: internal/oauth/scope.go
+  status: in-progress
+;;
+
+[SESSION.78]
+  ;; Gem.2.5 | 2026-07-08:
+  d78: integration tests against mock OAuth servers (cycle 2)
+  file.touched: internal/oauth/integration_test.go
+  status: in-progress
+;;
+
+[SESSION.79]
+  ;; Lla.4 | 2026-07-09:
+  d79: documentation: OAuth provider onboarding (cycle 2)
+  file.touched: docs/oauth-onboarding.md
+  status: in-progress
+;;
+
+[SESSION.80]
+  ;; Kmi.K2 | 2026-07-10:
+  d80: ship OAuth as v0.5.0 (cycle 2)
+  file.touched: internal/oauth/registry.go
+  status: ready-to-merge
+;;
+
+[SESSION.81]
+  ;; CLd.Snt4.6 | 2026-07-11:
+  d81: MFA: TOTP via authenticator apps (RFC 6238) (cycle 2)
+  file.touched: internal/mfa/totp.go
+  status: in-progress
+;;
+
+[SESSION.82]
+  ;; CLd.Ops4.6 | 2026-07-12:
+  d82: backup codes: 10 single-use codes per user (cycle 2)
+  file.touched: internal/mfa/totp_test.go
+  status: in-progress
+;;
+
+[SESSION.83]
+  ;; CLd.Snt4.5 | 2026-07-13:
+  d83: MFA enrollment flow: scan QR, enter 6-digit code twice (cycle 2)
+  file.touched: internal/mfa/backup_codes.go
+  status: in-progress
+;;
+
+[SESSION.84]
+  ;; CLd.Ops4.7 | 2026-07-14:
+  d84: recovery flow: backup code OR support ticket (no SMS) (cycle 2)
+  file.touched: internal/mfa/enrollment.go
+  status: in-progress
+;;
+
+[SESSION.85]
+  ;; Cdx.5.4 | 2026-07-15:
+  d85: decline SMS MFA (security risk per NIST 800-63B) (cycle 2)
+  file.touched: internal/mfa/policy.go
+  status: in-progress
+;;
+
+[SESSION.86]
+  ;; Cdx.5.4-codex | 2026-07-16:
+  d86: MFA-required policy configurable per role (cycle 2)
+  file.touched: internal/mfa/recovery.go
+  status: in-progress
+;;
+
+[SESSION.87]
+  ;; GPT.5.4 | 2026-07-17:
+  d87: rate-limit MFA attempts: 5 attempts then 15-min lockout (cycle 2)
+  file.touched: internal/mfa/audit.go
+  status: in-progress
+;;
+
+[SESSION.88]
+  ;; Gem.2.5 | 2026-07-18:
+  d88: audit log MFA enable/disable events (cycle 2)
+  file.touched: docs/mfa-faq.md
+  status: in-progress
+;;
+
+[SESSION.89]
+  ;; Lla.4 | 2026-07-19:
+  d89: WebAuthn passkey support deferred to v0.7 (cycle 2)
+  file.touched: internal/mfa/totp.go
+  status: in-progress
+;;
+
+[SESSION.90]
+  ;; Kmi.K2 | 2026-07-20:
+  d90: ship MFA as v0.6.0 (cycle 2)
+  file.touched: internal/mfa/totp_test.go
+  status: ready-to-merge
+;;
+
+[SESSION.91]
+  ;; CLd.Snt4.6 | 2026-07-21:
+  d91: third-party security audit by Trail of Bits (cycle 2)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.92]
+  ;; CLd.Ops4.6 | 2026-07-22:
+  d92: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 2)
+  relation: revert d24
+  file.touched: internal/auth/cache.go
+  status: in-progress
+;;
+
+[SESSION.93]
+  ;; CLd.Snt4.5 | 2026-07-23:
+  d93: backport JWT migration to v0.6.x (cycle 2)
+  file.touched: internal/middleware/chain.go
+  status: in-progress
+;;
+
+[SESSION.94]
+  ;; CLd.Ops4.7 | 2026-07-24:
+  d94: performance: middleware chain p95 800us -> 120us (cycle 2)
+  file.touched: Makefile
+  status: in-progress
+;;
+
+[SESSION.95]
+  ;; Cdx.5.4 | 2026-07-25:
+  d95: memory: session cache pool sync.Pool (cycle 2)
+  file.touched: .github/workflows/security.yml
+  status: in-progress
+;;
+
+[SESSION.96]
+  ;; Cdx.5.4-codex | 2026-07-26:
+  d96: compile flags: -trimpath, -buildvcs=false (cycle 2)
+  file.touched: internal/auth/reset.go
+  status: in-progress
+;;
+
+[SESSION.97]
+  ;; GPT.5.4 | 2026-07-27:
+  d97: supply chain: govulncheck in CI (cycle 2)
+  file.touched: internal/passkey/webauthn.go
+  status: in-progress
+;;
+
+[SESSION.98]
+  ;; Gem.2.5 | 2026-07-28:
+  d98: OWASP top 10 checklist: pass with one note (rate-limit on /reset) (cycle 2)
+  file.touched: internal/passkey/registration.go
+  status: in-progress
+;;
+
+[SESSION.99]
+  ;; Lla.4 | 2026-07-29:
+  d99: audit closed; CVE patched in v0.6.1 (cycle 2)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.100]
+  ;; Kmi.K2 | 2026-07-30:
+  d100: ship v0.7.0 with WebAuthn passkey (cycle 2)
+  file.touched: internal/auth/cache.go
+  status: ready-to-merge
+;;
+
+[SESSION.101]
+  ;; CLd.Snt4.6 | 2026-08-01:
+  d101: relocate auth from web/server.go -> internal/auth/middleware.go (cycle 3)
+  file.touched: web/server.go
+  status: in-progress
+;;
+
+[SESSION.102]
+  ;; CLd.Ops4.6 | 2026-08-02:
+  d102: rename AuthCheck -> RequireAuth (matches new convention) (cycle 3)
+  file.touched: internal/auth/middleware.go
+  status: in-progress
+;;
+
+[SESSION.103]
+  ;; CLd.Snt4.5 | 2026-08-03:
+  d103: rate-limiter NOT refactored in this scope (out-of-scope) (cycle 3)
+  file.touched: internal/auth/middleware_test.go
+  status: in-progress
+;;
+
+[SESSION.104]
+  ;; CLd.Ops4.7 | 2026-08-04:
+  d104: legacy session-cookie path PRESERVED in middleware (deferred) (cycle 3)
+  file.touched: web/server_test.go
+  status: in-progress
+;;
+
+[SESSION.105]
+  ;; Cdx.5.4 | 2026-08-05:
+  d105: investigate CI flake before merge (cycle 3)
+  file.touched: internal/auth/integration_test.go
+  status: in-progress
+;;
+
+[SESSION.106]
+  ;; Cdx.5.4-codex | 2026-08-06:
+  d106: fix flake by isolating test fixtures (cycle 3)
+  file.touched: internal/ratelimit/middleware.go
+  status: in-progress
+;;
+
+[SESSION.107]
+  ;; GPT.5.4 | 2026-08-07:
+  d107: delete legacy session-cookie path under build tag (cycle 3)
+  relation: revert d4
+  file.touched: internal/ratelimit/middleware_test.go
+  status: in-progress
+;;
+
+[SESSION.108]
+  ;; Gem.2.5 | 2026-08-08:
+  d108: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 3)
+  relation: supersede d3
+  file.touched: internal/middleware/chain.go
+  status: in-progress
+;;
+
+[SESSION.109]
+  ;; Lla.4 | 2026-08-09:
+  d109: middleware composition via Chain(...) helper (cycle 3)
+  file.touched: web/server.go
+  status: in-progress
+;;
+
+[SESSION.110]
+  ;; Kmi.K2 | 2026-08-10:
+  d110: ship as v0.4.0 (cycle 3)
+  file.touched: internal/auth/middleware.go
+  status: ready-to-merge
+;;
+
+[SESSION.111]
+  ;; CLd.Snt4.6 | 2026-08-11:
+  d111: fix CSRF token regression in /api/login (cycle 3)
+  file.touched: internal/auth/csrf.go
+  status: in-progress
+;;
+
+[SESSION.112]
+  ;; CLd.Ops4.6 | 2026-08-12:
+  d112: expand session timeout config to per-route (cycle 3)
+  file.touched: internal/auth/csrf_test.go
+  status: in-progress
+;;
+
+[SESSION.113]
+  ;; CLd.Snt4.5 | 2026-08-13:
+  d113: add audit log for failed auth attempts (cycle 3)
+  file.touched: internal/auth/audit.go
+  status: in-progress
+;;
+
+[SESSION.114]
+  ;; CLd.Ops4.7 | 2026-08-14:
+  d114: rate-limit threshold reduced 100/min -> 60/min (cycle 3)
+  file.touched: internal/auth/audit_test.go
+  status: in-progress
+;;
+
+[SESSION.115]
+  ;; Cdx.5.4 | 2026-08-15:
+  d115: revert rate-limit threshold change (false positives) (cycle 3)
+  relation: revert d14
+  file.touched: internal/ratelimit/config.go
+  status: in-progress
+;;
+
+[SESSION.116]
+  ;; Cdx.5.4-codex | 2026-08-16:
+  d116: structured logging for auth path (zerolog) (cycle 3)
+  file.touched: internal/auth/cache.go
+  status: in-progress
+;;
+
+[SESSION.117]
+  ;; GPT.5.4 | 2026-08-17:
+  d117: benchmark: middleware chain hot-path latency (cycle 3)
+  file.touched: internal/middleware/metrics.go
+  status: in-progress
+;;
+
+[SESSION.118]
+  ;; Gem.2.5 | 2026-08-18:
+  d118: cache RequireAuth result for duration of request (cycle 3)
+  file.touched: cmd/server/main.go
+  status: in-progress
+;;
+
+[SESSION.119]
+  ;; Lla.4 | 2026-08-19:
+  d119: add metrics: auth_success_total, auth_failure_total (cycle 3)
+  file.touched: internal/auth/csrf.go
+  status: in-progress
+;;
+
+[SESSION.120]
+  ;; Kmi.K2 | 2026-08-20:
+  d120: post-launch bugs closed; ship v0.4.1 (cycle 3)
+  file.touched: internal/auth/csrf_test.go
+  status: ready-to-merge
+;;
+
+[SESSION.121]
+  ;; CLd.Snt4.6 | 2026-08-21:
+  d121: add OAuth provider registry (Google, GitHub, GitLab) (cycle 3)
+  file.touched: internal/oauth/registry.go
+  status: in-progress
+;;
+
+[SESSION.122]
+  ;; CLd.Ops4.6 | 2026-08-22:
+  d122: OAuth callback under /auth/oauth/<provider>/callback (cycle 3)
+  file.touched: internal/oauth/google.go
+  status: in-progress
+;;
+
+[SESSION.123]
+  ;; CLd.Snt4.5 | 2026-08-23:
+  d123: session token: JWT signed RS256 (was: opaque random) (cycle 3)
+  file.touched: internal/oauth/github.go
+  status: in-progress
+;;
+
+[SESSION.124]
+  ;; CLd.Ops4.7 | 2026-08-24:
+  d124: revert RS256: use HS512 (operational simplicity) (cycle 3)
+  relation: revert d23
+  file.touched: internal/oauth/gitlab.go
+  status: in-progress
+;;
+
+[SESSION.125]
+  ;; Cdx.5.4 | 2026-08-25:
+  d125: OAuth state param: encrypted user-intent payload (cycle 3)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.126]
+  ;; Cdx.5.4-codex | 2026-08-26:
+  d126: rate-limit OAuth callbacks separately (5/min/IP) (cycle 3)
+  file.touched: internal/oauth/state.go
+  status: in-progress
+;;
+
+[SESSION.127]
+  ;; GPT.5.4 | 2026-08-27:
+  d127: add provider-specific scope mapping (cycle 3)
+  file.touched: internal/oauth/scope.go
+  status: in-progress
+;;
+
+[SESSION.128]
+  ;; Gem.2.5 | 2026-08-28:
+  d128: integration tests against mock OAuth servers (cycle 3)
+  file.touched: internal/oauth/integration_test.go
+  status: in-progress
+;;
+
+[SESSION.129]
+  ;; Lla.4 | 2026-08-29:
+  d129: documentation: OAuth provider onboarding (cycle 3)
+  file.touched: docs/oauth-onboarding.md
+  status: in-progress
+;;
+
+[SESSION.130]
+  ;; Kmi.K2 | 2026-08-30:
+  d130: ship OAuth as v0.5.0 (cycle 3)
+  file.touched: internal/oauth/registry.go
+  status: ready-to-merge
+;;
+
+[SESSION.131]
+  ;; CLd.Snt4.6 | 2026-09-01:
+  d131: MFA: TOTP via authenticator apps (RFC 6238) (cycle 3)
+  file.touched: internal/mfa/totp.go
+  status: in-progress
+;;
+
+[SESSION.132]
+  ;; CLd.Ops4.6 | 2026-09-02:
+  d132: backup codes: 10 single-use codes per user (cycle 3)
+  file.touched: internal/mfa/totp_test.go
+  status: in-progress
+;;
+
+[SESSION.133]
+  ;; CLd.Snt4.5 | 2026-09-03:
+  d133: MFA enrollment flow: scan QR, enter 6-digit code twice (cycle 3)
+  file.touched: internal/mfa/backup_codes.go
+  status: in-progress
+;;
+
+[SESSION.134]
+  ;; CLd.Ops4.7 | 2026-09-04:
+  d134: recovery flow: backup code OR support ticket (no SMS) (cycle 3)
+  file.touched: internal/mfa/enrollment.go
+  status: in-progress
+;;
+
+[SESSION.135]
+  ;; Cdx.5.4 | 2026-09-05:
+  d135: decline SMS MFA (security risk per NIST 800-63B) (cycle 3)
+  file.touched: internal/mfa/policy.go
+  status: in-progress
+;;
+
+[SESSION.136]
+  ;; Cdx.5.4-codex | 2026-09-06:
+  d136: MFA-required policy configurable per role (cycle 3)
+  file.touched: internal/mfa/recovery.go
+  status: in-progress
+;;
+
+[SESSION.137]
+  ;; GPT.5.4 | 2026-09-07:
+  d137: rate-limit MFA attempts: 5 attempts then 15-min lockout (cycle 3)
+  file.touched: internal/mfa/audit.go
+  status: in-progress
+;;
+
+[SESSION.138]
+  ;; Gem.2.5 | 2026-09-08:
+  d138: audit log MFA enable/disable events (cycle 3)
+  file.touched: docs/mfa-faq.md
+  status: in-progress
+;;
+
+[SESSION.139]
+  ;; Lla.4 | 2026-09-09:
+  d139: WebAuthn passkey support deferred to v0.7 (cycle 3)
+  file.touched: internal/mfa/totp.go
+  status: in-progress
+;;
+
+[SESSION.140]
+  ;; Kmi.K2 | 2026-09-10:
+  d140: ship MFA as v0.6.0 (cycle 3)
+  file.touched: internal/mfa/totp_test.go
+  status: ready-to-merge
+;;
+
+[SESSION.141]
+  ;; CLd.Snt4.6 | 2026-09-11:
+  d141: third-party security audit by Trail of Bits (cycle 3)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.142]
+  ;; CLd.Ops4.6 | 2026-09-12:
+  d142: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 3)
+  relation: revert d24
+  file.touched: internal/auth/cache.go
+  status: in-progress
+;;
+
+[SESSION.143]
+  ;; CLd.Snt4.5 | 2026-09-13:
+  d143: backport JWT migration to v0.6.x (cycle 3)
+  file.touched: internal/middleware/chain.go
+  status: in-progress
+;;
+
+[SESSION.144]
+  ;; CLd.Ops4.7 | 2026-09-14:
+  d144: performance: middleware chain p95 800us -> 120us (cycle 3)
+  file.touched: Makefile
+  status: in-progress
+;;
+
+[SESSION.145]
+  ;; Cdx.5.4 | 2026-09-15:
+  d145: memory: session cache pool sync.Pool (cycle 3)
+  file.touched: .github/workflows/security.yml
+  status: in-progress
+;;
+
+[SESSION.146]
+  ;; Cdx.5.4-codex | 2026-09-16:
+  d146: compile flags: -trimpath, -buildvcs=false (cycle 3)
+  file.touched: internal/auth/reset.go
+  status: in-progress
+;;
+
+[SESSION.147]
+  ;; GPT.5.4 | 2026-09-17:
+  d147: supply chain: govulncheck in CI (cycle 3)
+  file.touched: internal/passkey/webauthn.go
+  status: in-progress
+;;
+
+[SESSION.148]
+  ;; Gem.2.5 | 2026-09-18:
+  d148: OWASP top 10 checklist: pass with one note (rate-limit on /reset) (cycle 3)
+  file.touched: internal/passkey/registration.go
+  status: in-progress
+;;
+
+[SESSION.149]
+  ;; Lla.4 | 2026-09-19:
+  d149: audit closed; CVE patched in v0.6.1 (cycle 3)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.150]
+  ;; Kmi.K2 | 2026-09-20:
+  d150: ship v0.7.0 with WebAuthn passkey (cycle 3)
+  file.touched: internal/auth/cache.go
+  status: ready-to-merge
+;;
+
+[SESSION.151]
+  ;; CLd.Snt4.6 | 2026-09-21:
+  d151: relocate auth from web/server.go -> internal/auth/middleware.go (cycle 4)
+  file.touched: web/server.go
+  status: in-progress
+;;
+
+[SESSION.152]
+  ;; CLd.Ops4.6 | 2026-09-22:
+  d152: rename AuthCheck -> RequireAuth (matches new convention) (cycle 4)
+  file.touched: internal/auth/middleware.go
+  status: in-progress
+;;
+
+[SESSION.153]
+  ;; CLd.Snt4.5 | 2026-09-23:
+  d153: rate-limiter NOT refactored in this scope (out-of-scope) (cycle 4)
+  file.touched: internal/auth/middleware_test.go
+  status: in-progress
+;;
+
+[SESSION.154]
+  ;; CLd.Ops4.7 | 2026-09-24:
+  d154: legacy session-cookie path PRESERVED in middleware (deferred) (cycle 4)
+  file.touched: web/server_test.go
+  status: in-progress
+;;
+
+[SESSION.155]
+  ;; Cdx.5.4 | 2026-09-25:
+  d155: investigate CI flake before merge (cycle 4)
+  file.touched: internal/auth/integration_test.go
+  status: in-progress
+;;
+
+[SESSION.156]
+  ;; Cdx.5.4-codex | 2026-09-26:
+  d156: fix flake by isolating test fixtures (cycle 4)
+  file.touched: internal/ratelimit/middleware.go
+  status: in-progress
+;;
+
+[SESSION.157]
+  ;; GPT.5.4 | 2026-09-27:
+  d157: delete legacy session-cookie path under build tag (cycle 4)
+  relation: revert d4
+  file.touched: internal/ratelimit/middleware_test.go
+  status: in-progress
+;;
+
+[SESSION.158]
+  ;; Gem.2.5 | 2026-09-28:
+  d158: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 4)
+  relation: supersede d3
+  file.touched: internal/middleware/chain.go
+  status: in-progress
+;;
+
+[SESSION.159]
+  ;; Lla.4 | 2026-09-29:
+  d159: middleware composition via Chain(...) helper (cycle 4)
+  file.touched: web/server.go
+  status: in-progress
+;;
+
+[SESSION.160]
+  ;; Kmi.K2 | 2026-09-30:
+  d160: ship as v0.4.0 (cycle 4)
+  file.touched: internal/auth/middleware.go
+  status: ready-to-merge
+;;
+
+[SESSION.161]
+  ;; CLd.Snt4.6 | 2026-10-01:
+  d161: fix CSRF token regression in /api/login (cycle 4)
+  file.touched: internal/auth/csrf.go
+  status: in-progress
+;;
+
+[SESSION.162]
+  ;; CLd.Ops4.6 | 2026-10-02:
+  d162: expand session timeout config to per-route (cycle 4)
+  file.touched: internal/auth/csrf_test.go
+  status: in-progress
+;;
+
+[SESSION.163]
+  ;; CLd.Snt4.5 | 2026-10-03:
+  d163: add audit log for failed auth attempts (cycle 4)
+  file.touched: internal/auth/audit.go
+  status: in-progress
+;;
+
+[SESSION.164]
+  ;; CLd.Ops4.7 | 2026-10-04:
+  d164: rate-limit threshold reduced 100/min -> 60/min (cycle 4)
+  file.touched: internal/auth/audit_test.go
+  status: in-progress
+;;
+
+[SESSION.165]
+  ;; Cdx.5.4 | 2026-10-05:
+  d165: revert rate-limit threshold change (false positives) (cycle 4)
+  relation: revert d14
+  file.touched: internal/ratelimit/config.go
+  status: in-progress
+;;
+
+[SESSION.166]
+  ;; Cdx.5.4-codex | 2026-10-06:
+  d166: structured logging for auth path (zerolog) (cycle 4)
+  file.touched: internal/auth/cache.go
+  status: in-progress
+;;
+
+[SESSION.167]
+  ;; GPT.5.4 | 2026-10-07:
+  d167: benchmark: middleware chain hot-path latency (cycle 4)
+  file.touched: internal/middleware/metrics.go
+  status: in-progress
+;;
+
+[SESSION.168]
+  ;; Gem.2.5 | 2026-10-08:
+  d168: cache RequireAuth result for duration of request (cycle 4)
+  file.touched: cmd/server/main.go
+  status: in-progress
+;;
+
+[SESSION.169]
+  ;; Lla.4 | 2026-10-09:
+  d169: add metrics: auth_success_total, auth_failure_total (cycle 4)
+  file.touched: internal/auth/csrf.go
+  status: in-progress
+;;
+
+[SESSION.170]
+  ;; Kmi.K2 | 2026-10-10:
+  d170: post-launch bugs closed; ship v0.4.1 (cycle 4)
+  file.touched: internal/auth/csrf_test.go
+  status: ready-to-merge
+;;
+
+[SESSION.171]
+  ;; CLd.Snt4.6 | 2026-10-11:
+  d171: add OAuth provider registry (Google, GitHub, GitLab) (cycle 4)
+  file.touched: internal/oauth/registry.go
+  status: in-progress
+;;
+
+[SESSION.172]
+  ;; CLd.Ops4.6 | 2026-10-12:
+  d172: OAuth callback under /auth/oauth/<provider>/callback (cycle 4)
+  file.touched: internal/oauth/google.go
+  status: in-progress
+;;
+
+[SESSION.173]
+  ;; CLd.Snt4.5 | 2026-10-13:
+  d173: session token: JWT signed RS256 (was: opaque random) (cycle 4)
+  file.touched: internal/oauth/github.go
+  status: in-progress
+;;
+
+[SESSION.174]
+  ;; CLd.Ops4.7 | 2026-10-14:
+  d174: revert RS256: use HS512 (operational simplicity) (cycle 4)
+  relation: revert d23
+  file.touched: internal/oauth/gitlab.go
+  status: in-progress
+;;
+
+[SESSION.175]
+  ;; Cdx.5.4 | 2026-10-15:
+  d175: OAuth state param: encrypted user-intent payload (cycle 4)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.176]
+  ;; Cdx.5.4-codex | 2026-10-16:
+  d176: rate-limit OAuth callbacks separately (5/min/IP) (cycle 4)
+  file.touched: internal/oauth/state.go
+  status: in-progress
+;;
+
+[SESSION.177]
+  ;; GPT.5.4 | 2026-10-17:
+  d177: add provider-specific scope mapping (cycle 4)
+  file.touched: internal/oauth/scope.go
+  status: in-progress
+;;
+
+[SESSION.178]
+  ;; Gem.2.5 | 2026-10-18:
+  d178: integration tests against mock OAuth servers (cycle 4)
+  file.touched: internal/oauth/integration_test.go
+  status: in-progress
+;;
+
+[SESSION.179]
+  ;; Lla.4 | 2026-10-19:
+  d179: documentation: OAuth provider onboarding (cycle 4)
+  file.touched: docs/oauth-onboarding.md
+  status: in-progress
+;;
+
+[SESSION.180]
+  ;; Kmi.K2 | 2026-10-20:
+  d180: ship OAuth as v0.5.0 (cycle 4)
+  file.touched: internal/oauth/registry.go
+  status: ready-to-merge
+;;
+
+[SESSION.181]
+  ;; CLd.Snt4.6 | 2026-10-21:
+  d181: MFA: TOTP via authenticator apps (RFC 6238) (cycle 4)
+  file.touched: internal/mfa/totp.go
+  status: in-progress
+;;
+
+[SESSION.182]
+  ;; CLd.Ops4.6 | 2026-10-22:
+  d182: backup codes: 10 single-use codes per user (cycle 4)
+  file.touched: internal/mfa/totp_test.go
+  status: in-progress
+;;
+
+[SESSION.183]
+  ;; CLd.Snt4.5 | 2026-10-23:
+  d183: MFA enrollment flow: scan QR, enter 6-digit code twice (cycle 4)
+  file.touched: internal/mfa/backup_codes.go
+  status: in-progress
+;;
+
+[SESSION.184]
+  ;; CLd.Ops4.7 | 2026-10-24:
+  d184: recovery flow: backup code OR support ticket (no SMS) (cycle 4)
+  file.touched: internal/mfa/enrollment.go
+  status: in-progress
+;;
+
+[SESSION.185]
+  ;; Cdx.5.4 | 2026-10-25:
+  d185: decline SMS MFA (security risk per NIST 800-63B) (cycle 4)
+  file.touched: internal/mfa/policy.go
+  status: in-progress
+;;
+
+[SESSION.186]
+  ;; Cdx.5.4-codex | 2026-10-26:
+  d186: MFA-required policy configurable per role (cycle 4)
+  file.touched: internal/mfa/recovery.go
+  status: in-progress
+;;
+
+[SESSION.187]
+  ;; GPT.5.4 | 2026-10-27:
+  d187: rate-limit MFA attempts: 5 attempts then 15-min lockout (cycle 4)
+  file.touched: internal/mfa/audit.go
+  status: in-progress
+;;
+
+[SESSION.188]
+  ;; Gem.2.5 | 2026-10-28:
+  d188: audit log MFA enable/disable events (cycle 4)
+  file.touched: docs/mfa-faq.md
+  status: in-progress
+;;
+
+[SESSION.189]
+  ;; Lla.4 | 2026-10-29:
+  d189: WebAuthn passkey support deferred to v0.7 (cycle 4)
+  file.touched: internal/mfa/totp.go
+  status: in-progress
+;;
+
+[SESSION.190]
+  ;; Kmi.K2 | 2026-10-30:
+  d190: ship MFA as v0.6.0 (cycle 4)
+  file.touched: internal/mfa/totp_test.go
+  status: ready-to-merge
+;;
+
+[SESSION.191]
+  ;; CLd.Snt4.6 | 2026-11-01:
+  d191: third-party security audit by Trail of Bits (cycle 4)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.192]
+  ;; CLd.Ops4.6 | 2026-11-02:
+  d192: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 4)
+  relation: revert d24
+  file.touched: internal/auth/cache.go
+  status: in-progress
+;;
+
+[SESSION.193]
+  ;; CLd.Snt4.5 | 2026-11-03:
+  d193: backport JWT migration to v0.6.x (cycle 4)
+  file.touched: internal/middleware/chain.go
+  status: in-progress
+;;
+
+[SESSION.194]
+  ;; CLd.Ops4.7 | 2026-11-04:
+  d194: performance: middleware chain p95 800us -> 120us (cycle 4)
+  file.touched: Makefile
+  status: in-progress
+;;
+
+[SESSION.195]
+  ;; Cdx.5.4 | 2026-11-05:
+  d195: memory: session cache pool sync.Pool (cycle 4)
+  file.touched: .github/workflows/security.yml
+  status: in-progress
+;;
+
+[SESSION.196]
+  ;; Cdx.5.4-codex | 2026-11-06:
+  d196: compile flags: -trimpath, -buildvcs=false (cycle 4)
+  file.touched: internal/auth/reset.go
+  status: in-progress
+;;
+
+[SESSION.197]
+  ;; GPT.5.4 | 2026-11-07:
+  d197: supply chain: govulncheck in CI (cycle 4)
+  file.touched: internal/passkey/webauthn.go
+  status: in-progress
+;;
+
+[SESSION.198]
+  ;; Gem.2.5 | 2026-11-08:
+  d198: OWASP top 10 checklist: pass with one note (rate-limit on /reset) (cycle 4)
+  file.touched: internal/passkey/registration.go
+  status: in-progress
+;;
+
+[SESSION.199]
+  ;; Lla.4 | 2026-11-09:
+  d199: audit closed; CVE patched in v0.6.1 (cycle 4)
+  file.touched: internal/oauth/jwt.go
+  status: in-progress
+;;
+
+[SESSION.200]
+  ;; Kmi.K2 | 2026-11-10:
+  d200: ship v0.7.0 with WebAuthn passkey (cycle 4)
+  file.touched: internal/auth/cache.go
+  status: ready-to-merge
+;;
+
+;;; EOF | CLM/2.1
+;;; "session ends; memory does not"
+;;; — CLd.Snt4.6 | session.1.author | 2026-04-21
+;;; — CLd.Ops4.6 | session.2.author | 2026-04-22
+;;; — CLd.Snt4.5 | session.3.author | 2026-04-23
+;;; — CLd.Ops4.7 | session.4.author | 2026-04-24
+;;; — Cdx.5.4 | session.5.author | 2026-04-25
+;;; — Cdx.5.4-codex | session.6.author | 2026-04-26
+;;; — GPT.5.4 | session.7.author | 2026-04-27
+;;; — Gem.2.5 | session.8.author | 2026-04-28
+;;; — Lla.4 | session.9.author | 2026-04-29
+;;; — Kmi.K2 | session.10.author | 2026-04-30
+;;; — CLd.Snt4.6 | session.11.author | 2026-05-01
+;;; — CLd.Ops4.6 | session.12.author | 2026-05-02
+;;; — CLd.Snt4.5 | session.13.author | 2026-05-03
+;;; — CLd.Ops4.7 | session.14.author | 2026-05-04
+;;; — Cdx.5.4 | session.15.author | 2026-05-05
+;;; — Cdx.5.4-codex | session.16.author | 2026-05-06
+;;; — GPT.5.4 | session.17.author | 2026-05-07
+;;; — Gem.2.5 | session.18.author | 2026-05-08
+;;; — Lla.4 | session.19.author | 2026-05-09
+;;; — Kmi.K2 | session.20.author | 2026-05-10
+;;; — CLd.Snt4.6 | session.21.author | 2026-05-11
+;;; — CLd.Ops4.6 | session.22.author | 2026-05-12
+;;; — CLd.Snt4.5 | session.23.author | 2026-05-13
+;;; — CLd.Ops4.7 | session.24.author | 2026-05-14
+;;; — Cdx.5.4 | session.25.author | 2026-05-15
+;;; — Cdx.5.4-codex | session.26.author | 2026-05-16
+;;; — GPT.5.4 | session.27.author | 2026-05-17
+;;; — Gem.2.5 | session.28.author | 2026-05-18
+;;; — Lla.4 | session.29.author | 2026-05-19
+;;; — Kmi.K2 | session.30.author | 2026-05-20
+;;; — CLd.Snt4.6 | session.31.author | 2026-05-21
+;;; — CLd.Ops4.6 | session.32.author | 2026-05-22
+;;; — CLd.Snt4.5 | session.33.author | 2026-05-23
+;;; — CLd.Ops4.7 | session.34.author | 2026-05-24
+;;; — Cdx.5.4 | session.35.author | 2026-05-25
+;;; — Cdx.5.4-codex | session.36.author | 2026-05-26
+;;; — GPT.5.4 | session.37.author | 2026-05-27
+;;; — Gem.2.5 | session.38.author | 2026-05-28
+;;; — Lla.4 | session.39.author | 2026-05-29
+;;; — Kmi.K2 | session.40.author | 2026-05-30
+;;; — CLd.Snt4.6 | session.41.author | 2026-06-01
+;;; — CLd.Ops4.6 | session.42.author | 2026-06-02
+;;; — CLd.Snt4.5 | session.43.author | 2026-06-03
+;;; — CLd.Ops4.7 | session.44.author | 2026-06-04
+;;; — Cdx.5.4 | session.45.author | 2026-06-05
+;;; — Cdx.5.4-codex | session.46.author | 2026-06-06
+;;; — GPT.5.4 | session.47.author | 2026-06-07
+;;; — Gem.2.5 | session.48.author | 2026-06-08
+;;; — Lla.4 | session.49.author | 2026-06-09
+;;; — Kmi.K2 | session.50.author | 2026-06-10
+;;; — CLd.Snt4.6 | session.51.author | 2026-06-11
+;;; — CLd.Ops4.6 | session.52.author | 2026-06-12
+;;; — CLd.Snt4.5 | session.53.author | 2026-06-13
+;;; — CLd.Ops4.7 | session.54.author | 2026-06-14
+;;; — Cdx.5.4 | session.55.author | 2026-06-15
+;;; — Cdx.5.4-codex | session.56.author | 2026-06-16
+;;; — GPT.5.4 | session.57.author | 2026-06-17
+;;; — Gem.2.5 | session.58.author | 2026-06-18
+;;; — Lla.4 | session.59.author | 2026-06-19
+;;; — Kmi.K2 | session.60.author | 2026-06-20
+;;; — CLd.Snt4.6 | session.61.author | 2026-06-21
+;;; — CLd.Ops4.6 | session.62.author | 2026-06-22
+;;; — CLd.Snt4.5 | session.63.author | 2026-06-23
+;;; — CLd.Ops4.7 | session.64.author | 2026-06-24
+;;; — Cdx.5.4 | session.65.author | 2026-06-25
+;;; — Cdx.5.4-codex | session.66.author | 2026-06-26
+;;; — GPT.5.4 | session.67.author | 2026-06-27
+;;; — Gem.2.5 | session.68.author | 2026-06-28
+;;; — Lla.4 | session.69.author | 2026-06-29
+;;; — Kmi.K2 | session.70.author | 2026-06-30
+;;; — CLd.Snt4.6 | session.71.author | 2026-07-01
+;;; — CLd.Ops4.6 | session.72.author | 2026-07-02
+;;; — CLd.Snt4.5 | session.73.author | 2026-07-03
+;;; — CLd.Ops4.7 | session.74.author | 2026-07-04
+;;; — Cdx.5.4 | session.75.author | 2026-07-05
+;;; — Cdx.5.4-codex | session.76.author | 2026-07-06
+;;; — GPT.5.4 | session.77.author | 2026-07-07
+;;; — Gem.2.5 | session.78.author | 2026-07-08
+;;; — Lla.4 | session.79.author | 2026-07-09
+;;; — Kmi.K2 | session.80.author | 2026-07-10
+;;; — CLd.Snt4.6 | session.81.author | 2026-07-11
+;;; — CLd.Ops4.6 | session.82.author | 2026-07-12
+;;; — CLd.Snt4.5 | session.83.author | 2026-07-13
+;;; — CLd.Ops4.7 | session.84.author | 2026-07-14
+;;; — Cdx.5.4 | session.85.author | 2026-07-15
+;;; — Cdx.5.4-codex | session.86.author | 2026-07-16
+;;; — GPT.5.4 | session.87.author | 2026-07-17
+;;; — Gem.2.5 | session.88.author | 2026-07-18
+;;; — Lla.4 | session.89.author | 2026-07-19
+;;; — Kmi.K2 | session.90.author | 2026-07-20
+;;; — CLd.Snt4.6 | session.91.author | 2026-07-21
+;;; — CLd.Ops4.6 | session.92.author | 2026-07-22
+;;; — CLd.Snt4.5 | session.93.author | 2026-07-23
+;;; — CLd.Ops4.7 | session.94.author | 2026-07-24
+;;; — Cdx.5.4 | session.95.author | 2026-07-25
+;;; — Cdx.5.4-codex | session.96.author | 2026-07-26
+;;; — GPT.5.4 | session.97.author | 2026-07-27
+;;; — Gem.2.5 | session.98.author | 2026-07-28
+;;; — Lla.4 | session.99.author | 2026-07-29
+;;; — Kmi.K2 | session.100.author | 2026-07-30
+;;; — CLd.Snt4.6 | session.101.author | 2026-08-01
+;;; — CLd.Ops4.6 | session.102.author | 2026-08-02
+;;; — CLd.Snt4.5 | session.103.author | 2026-08-03
+;;; — CLd.Ops4.7 | session.104.author | 2026-08-04
+;;; — Cdx.5.4 | session.105.author | 2026-08-05
+;;; — Cdx.5.4-codex | session.106.author | 2026-08-06
+;;; — GPT.5.4 | session.107.author | 2026-08-07
+;;; — Gem.2.5 | session.108.author | 2026-08-08
+;;; — Lla.4 | session.109.author | 2026-08-09
+;;; — Kmi.K2 | session.110.author | 2026-08-10
+;;; — CLd.Snt4.6 | session.111.author | 2026-08-11
+;;; — CLd.Ops4.6 | session.112.author | 2026-08-12
+;;; — CLd.Snt4.5 | session.113.author | 2026-08-13
+;;; — CLd.Ops4.7 | session.114.author | 2026-08-14
+;;; — Cdx.5.4 | session.115.author | 2026-08-15
+;;; — Cdx.5.4-codex | session.116.author | 2026-08-16
+;;; — GPT.5.4 | session.117.author | 2026-08-17
+;;; — Gem.2.5 | session.118.author | 2026-08-18
+;;; — Lla.4 | session.119.author | 2026-08-19
+;;; — Kmi.K2 | session.120.author | 2026-08-20
+;;; — CLd.Snt4.6 | session.121.author | 2026-08-21
+;;; — CLd.Ops4.6 | session.122.author | 2026-08-22
+;;; — CLd.Snt4.5 | session.123.author | 2026-08-23
+;;; — CLd.Ops4.7 | session.124.author | 2026-08-24
+;;; — Cdx.5.4 | session.125.author | 2026-08-25
+;;; — Cdx.5.4-codex | session.126.author | 2026-08-26
+;;; — GPT.5.4 | session.127.author | 2026-08-27
+;;; — Gem.2.5 | session.128.author | 2026-08-28
+;;; — Lla.4 | session.129.author | 2026-08-29
+;;; — Kmi.K2 | session.130.author | 2026-08-30
+;;; — CLd.Snt4.6 | session.131.author | 2026-09-01
+;;; — CLd.Ops4.6 | session.132.author | 2026-09-02
+;;; — CLd.Snt4.5 | session.133.author | 2026-09-03
+;;; — CLd.Ops4.7 | session.134.author | 2026-09-04
+;;; — Cdx.5.4 | session.135.author | 2026-09-05
+;;; — Cdx.5.4-codex | session.136.author | 2026-09-06
+;;; — GPT.5.4 | session.137.author | 2026-09-07
+;;; — Gem.2.5 | session.138.author | 2026-09-08
+;;; — Lla.4 | session.139.author | 2026-09-09
+;;; — Kmi.K2 | session.140.author | 2026-09-10
+;;; — CLd.Snt4.6 | session.141.author | 2026-09-11
+;;; — CLd.Ops4.6 | session.142.author | 2026-09-12
+;;; — CLd.Snt4.5 | session.143.author | 2026-09-13
+;;; — CLd.Ops4.7 | session.144.author | 2026-09-14
+;;; — Cdx.5.4 | session.145.author | 2026-09-15
+;;; — Cdx.5.4-codex | session.146.author | 2026-09-16
+;;; — GPT.5.4 | session.147.author | 2026-09-17
+;;; — Gem.2.5 | session.148.author | 2026-09-18
+;;; — Lla.4 | session.149.author | 2026-09-19
+;;; — Kmi.K2 | session.150.author | 2026-09-20
+;;; — CLd.Snt4.6 | session.151.author | 2026-09-21
+;;; — CLd.Ops4.6 | session.152.author | 2026-09-22
+;;; — CLd.Snt4.5 | session.153.author | 2026-09-23
+;;; — CLd.Ops4.7 | session.154.author | 2026-09-24
+;;; — Cdx.5.4 | session.155.author | 2026-09-25
+;;; — Cdx.5.4-codex | session.156.author | 2026-09-26
+;;; — GPT.5.4 | session.157.author | 2026-09-27
+;;; — Gem.2.5 | session.158.author | 2026-09-28
+;;; — Lla.4 | session.159.author | 2026-09-29
+;;; — Kmi.K2 | session.160.author | 2026-09-30
+;;; — CLd.Snt4.6 | session.161.author | 2026-10-01
+;;; — CLd.Ops4.6 | session.162.author | 2026-10-02
+;;; — CLd.Snt4.5 | session.163.author | 2026-10-03
+;;; — CLd.Ops4.7 | session.164.author | 2026-10-04
+;;; — Cdx.5.4 | session.165.author | 2026-10-05
+;;; — Cdx.5.4-codex | session.166.author | 2026-10-06
+;;; — GPT.5.4 | session.167.author | 2026-10-07
+;;; — Gem.2.5 | session.168.author | 2026-10-08
+;;; — Lla.4 | session.169.author | 2026-10-09
+;;; — Kmi.K2 | session.170.author | 2026-10-10
+;;; — CLd.Snt4.6 | session.171.author | 2026-10-11
+;;; — CLd.Ops4.6 | session.172.author | 2026-10-12
+;;; — CLd.Snt4.5 | session.173.author | 2026-10-13
+;;; — CLd.Ops4.7 | session.174.author | 2026-10-14
+;;; — Cdx.5.4 | session.175.author | 2026-10-15
+;;; — Cdx.5.4-codex | session.176.author | 2026-10-16
+;;; — GPT.5.4 | session.177.author | 2026-10-17
+;;; — Gem.2.5 | session.178.author | 2026-10-18
+;;; — Lla.4 | session.179.author | 2026-10-19
+;;; — Kmi.K2 | session.180.author | 2026-10-20
+;;; — CLd.Snt4.6 | session.181.author | 2026-10-21
+;;; — CLd.Ops4.6 | session.182.author | 2026-10-22
+;;; — CLd.Snt4.5 | session.183.author | 2026-10-23
+;;; — CLd.Ops4.7 | session.184.author | 2026-10-24
+;;; — Cdx.5.4 | session.185.author | 2026-10-25
+;;; — Cdx.5.4-codex | session.186.author | 2026-10-26
+;;; — GPT.5.4 | session.187.author | 2026-10-27
+;;; — Gem.2.5 | session.188.author | 2026-10-28
+;;; — Lla.4 | session.189.author | 2026-10-29
+;;; — Kmi.K2 | session.190.author | 2026-10-30
+;;; — CLd.Snt4.6 | session.191.author | 2026-11-01
+;;; — CLd.Ops4.6 | session.192.author | 2026-11-02
+;;; — CLd.Snt4.5 | session.193.author | 2026-11-03
+;;; — CLd.Ops4.7 | session.194.author | 2026-11-04
+;;; — Cdx.5.4 | session.195.author | 2026-11-05
+;;; — Cdx.5.4-codex | session.196.author | 2026-11-06
+;;; — GPT.5.4 | session.197.author | 2026-11-07
+;;; — Gem.2.5 | session.198.author | 2026-11-08
+;;; — Lla.4 | session.199.author | 2026-11-09
+;;; — Kmi.K2 | session.200.author | 2026-11-10

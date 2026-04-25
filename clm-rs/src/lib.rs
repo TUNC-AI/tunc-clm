@@ -1,8 +1,13 @@
-//! clm-rs — coarse-grained parser for the Claude Memory Format (CLM/1.0).
+//! clm-rs — coarse-grained parser for the Claude Memory Format.
 //!
-//! v0.1 treats section bodies as opaque text. The contract is round-trip:
+//! Supports both CLM/1.0 (Unicode brackets `⟦NAME⟧`) and CLM/2.x+/3.0
+//! (ASCII brackets `[NAME]`). The contract is round-trip:
 //! `serialize(parse(D)) == D` byte-for-byte for any document accepted by
-//! the grammar in `GRAMMAR.md`.
+//! the grammar.
+//!
+//! v3.0 trim-aware validation lives in [`validate`].
+
+pub mod validate;
 
 use std::fmt;
 
@@ -301,12 +306,31 @@ fn is_section_close(line: &str) -> bool {
 const SEC_OPEN: &str = "\u{27E6}"; // ⟦
 const SEC_CLOSE: &str = "\u{27E7}"; // ⟧
 
+/// Recognize both Unicode (`⟦NAME⟧`, CLM/1.0) and ASCII (`[NAME]`, CLM/2.x+/3.0)
+/// section opens. Returns the inner name on success.
 fn parse_section_open(line: &str) -> Option<String> {
     let trimmed = line.trim_end();
-    if !trimmed.starts_with(SEC_OPEN) || !trimmed.ends_with(SEC_CLOSE) {
-        return None;
+
+    // CLM/1.0: Unicode brackets
+    if let Some(inner) = trimmed
+        .strip_prefix(SEC_OPEN)
+        .and_then(|s| s.strip_suffix(SEC_CLOSE))
+    {
+        return validate_section_name(inner);
     }
-    let inner = &trimmed[SEC_OPEN.len()..trimmed.len() - SEC_CLOSE.len()];
+
+    // CLM/2.x+ / 3.0: ASCII brackets
+    if let Some(inner) = trimmed
+        .strip_prefix('[')
+        .and_then(|s| s.strip_suffix(']'))
+    {
+        return validate_section_name(inner);
+    }
+
+    None
+}
+
+fn validate_section_name(inner: &str) -> Option<String> {
     if inner.is_empty() {
         return None;
     }
@@ -315,7 +339,7 @@ fn parse_section_open(line: &str) -> Option<String> {
     if !first.is_ascii_uppercase() {
         return None;
     }
-    if !chars.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '.') {
+    if !chars.all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-') {
         return None;
     }
     Some(inner.to_string())
