@@ -1,0 +1,958 @@
+{
+  "models": {
+    "answerer": "claude-sonnet-4-6",
+    "summarizer": "claude-sonnet-4-6",
+    "tokenizer": "claude-opus-4-5"
+  },
+  "questions": [
+    {
+      "id": 1,
+      "q": "What file is the auth middleware being extracted from?",
+      "any_of": [
+        "web/server.go"
+      ]
+    },
+    {
+      "id": 2,
+      "q": "Into what package is the auth middleware being extracted?",
+      "any_of": [
+        "internal/auth"
+      ]
+    },
+    {
+      "id": 3,
+      "q": "What is the status of the auth middleware extraction work?",
+      "any_of": [
+        "in progress",
+        "in-progress",
+        "inprogress"
+      ]
+    },
+    {
+      "id": 4,
+      "q": "Who authored this handoff session? (model name or short identifier)",
+      "any_of": [
+        "snt4.6",
+        "sonnet 4.6"
+      ]
+    },
+    {
+      "id": 5,
+      "q": "What is the date of this handoff?",
+      "any_of": [
+        "2026-04-25"
+      ]
+    },
+    {
+      "id": 6,
+      "q": "How many files were edited in this session?",
+      "any_of": [
+        " 4 ",
+        " 4.",
+        " 4,",
+        "four"
+      ]
+    },
+    {
+      "id": 7,
+      "q": "What is the path of the new middleware source file?",
+      "any_of": [
+        "internal/auth/middleware.go"
+      ]
+    },
+    {
+      "id": 8,
+      "q": "What is the path of the new middleware test file?",
+      "any_of": [
+        "internal/auth/middleware_test.go"
+      ]
+    },
+    {
+      "id": 9,
+      "q": "What was the function AuthCheck renamed to?",
+      "any_of": [
+        "requireauth"
+      ]
+    },
+    {
+      "id": 10,
+      "q": "Why was AuthCheck renamed?",
+      "any_of": [
+        "new convention",
+        "convention"
+      ]
+    },
+    {
+      "id": 11,
+      "q": "What happened to the legacy session-cookie path?",
+      "any_of": [
+        "preserved",
+        "kept",
+        "left in",
+        "still in",
+        "remains"
+      ]
+    },
+    {
+      "id": 12,
+      "q": "Why was the legacy session-cookie path preserved rather than removed?",
+      "any_of": [
+        "deferred",
+        "out of scope",
+        "out-of-scope",
+        "outofscope"
+      ]
+    },
+    {
+      "id": 13,
+      "q": "What was the outcome for the rate limiter in this session?",
+      "any_of": [
+        "not refactored",
+        "not-refactored",
+        "skipped",
+        "untouched",
+        "left alone",
+        "not touched"
+      ]
+    },
+    {
+      "id": 14,
+      "q": "Why was the rate limiter not refactored?",
+      "any_of": [
+        "out of scope",
+        "out-of-scope",
+        "outofscope"
+      ]
+    },
+    {
+      "id": 15,
+      "q": "Summarize the first open question for the next session in a few words.",
+      "any_of": [
+        "delete",
+        "build tag",
+        "build-tag"
+      ]
+    },
+    {
+      "id": 16,
+      "q": "Summarize the second open question for the next session in a few words.",
+      "any_of": [
+        "flake",
+        "ordering bug",
+        "test race",
+        "race"
+      ]
+    },
+    {
+      "id": 17,
+      "q": "What does the previous session recommend the next session focus on first?",
+      "any_of": [
+        "flake",
+        "investigate",
+        "q2"
+      ]
+    },
+    {
+      "id": 18,
+      "q": "Are the tests passing locally? (yes or no)",
+      "any_of": [
+        "yes",
+        "passing",
+        "pass"
+      ]
+    },
+    {
+      "id": 19,
+      "q": "What is the status of CI? (passing/failing)",
+      "any_of": [
+        "not green",
+        "failing",
+        "red",
+        "not passing",
+        "fail"
+      ]
+    },
+    {
+      "id": 20,
+      "q": "What is the reason CI is not passing?",
+      "any_of": [
+        "timeout",
+        "kane-cve",
+        "kane cve",
+        "unrelated"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "variant": "CLM/1.0",
+      "chars": 1046,
+      "tokens": 461,
+      "gzip_bytes": 635,
+      "correct": 20,
+      "total": 20,
+      "per_question": [
+        {
+          "id": 1,
+          "ok": true,
+          "answer": "web/server.go"
+        },
+        {
+          "id": 2,
+          "ok": true,
+          "answer": "internal/auth/"
+        },
+        {
+          "id": 3,
+          "ok": true,
+          "answer": "in progress"
+        },
+        {
+          "id": 4,
+          "ok": true,
+          "answer": "CLd.Snt4.6"
+        },
+        {
+          "id": 5,
+          "ok": true,
+          "answer": "2026-04-25"
+        },
+        {
+          "id": 6,
+          "ok": true,
+          "answer": "Four files"
+        },
+        {
+          "id": 7,
+          "ok": true,
+          "answer": "internal/auth/middleware.go"
+        },
+        {
+          "id": 8,
+          "ok": true,
+          "answer": "internal/auth/middleware_test.go"
+        },
+        {
+          "id": 9,
+          "ok": true,
+          "answer": "RequireAuth"
+        },
+        {
+          "id": 10,
+          "ok": true,
+          "answer": "Matches new convention"
+        },
+        {
+          "id": 11,
+          "ok": true,
+          "answer": "Preserved in middleware"
+        },
+        {
+          "id": 12,
+          "ok": true,
+          "answer": "Deferred; out of scope"
+        },
+        {
+          "id": 13,
+          "ok": true,
+          "answer": "Not refactored; out of scope"
+        },
+        {
+          "id": 14,
+          "ok": true,
+          "answer": "Out of scope"
+        },
+        {
+          "id": 15,
+          "ok": true,
+          "answer": "Delete or keep legacy session cookie?"
+        },
+        {
+          "id": 16,
+          "ok": true,
+          "answer": "Is server_test.go flake ordering bug or race?"
+        },
+        {
+          "id": 17,
+          "ok": true,
+          "answer": "Investigate the q2 flake"
+        },
+        {
+          "id": 18,
+          "ok": true,
+          "answer": "Yes"
+        },
+        {
+          "id": 19,
+          "ok": true,
+          "answer": "Failing"
+        },
+        {
+          "id": 20,
+          "ok": true,
+          "answer": "Unrelated timeout (kane-cve.fetch)"
+        }
+      ]
+    },
+    {
+      "variant": "CLM/2.0",
+      "chars": 995,
+      "tokens": 368,
+      "gzip_bytes": 579,
+      "correct": 19,
+      "total": 20,
+      "per_question": [
+        {
+          "id": 1,
+          "ok": true,
+          "answer": "web/server.go"
+        },
+        {
+          "id": 2,
+          "ok": true,
+          "answer": "internal/auth/"
+        },
+        {
+          "id": 3,
+          "ok": true,
+          "answer": "in-progress"
+        },
+        {
+          "id": 4,
+          "ok": true,
+          "answer": "Snt4.6"
+        },
+        {
+          "id": 5,
+          "ok": true,
+          "answer": "2026-04-25"
+        },
+        {
+          "id": 6,
+          "ok": false,
+          "answer": "4"
+        },
+        {
+          "id": 7,
+          "ok": true,
+          "answer": "internal/auth/middleware.go"
+        },
+        {
+          "id": 8,
+          "ok": true,
+          "answer": "internal/auth/middleware_test.go"
+        },
+        {
+          "id": 9,
+          "ok": true,
+          "answer": "RequireAuth"
+        },
+        {
+          "id": 10,
+          "ok": true,
+          "answer": "Matches new convention"
+        },
+        {
+          "id": 11,
+          "ok": true,
+          "answer": "Preserved in middleware"
+        },
+        {
+          "id": 12,
+          "ok": true,
+          "answer": "Deferred, out-of-scope"
+        },
+        {
+          "id": 13,
+          "ok": true,
+          "answer": "Not refactored"
+        },
+        {
+          "id": 14,
+          "ok": true,
+          "answer": "Out-of-scope"
+        },
+        {
+          "id": 15,
+          "ok": true,
+          "answer": "Delete or keep legacy session cookie?"
+        },
+        {
+          "id": 16,
+          "ok": true,
+          "answer": "Test flake: ordering bug or race?"
+        },
+        {
+          "id": 17,
+          "ok": true,
+          "answer": "Investigate q2 flake"
+        },
+        {
+          "id": 18,
+          "ok": true,
+          "answer": "yes"
+        },
+        {
+          "id": 19,
+          "ok": true,
+          "answer": "failing"
+        },
+        {
+          "id": 20,
+          "ok": true,
+          "answer": "Unrelated timeout in kane-cve fetch"
+        }
+      ]
+    },
+    {
+      "variant": "Prose (md)",
+      "chars": 1055,
+      "tokens": 318,
+      "gzip_bytes": 575,
+      "correct": 20,
+      "total": 20,
+      "per_question": [
+        {
+          "id": 1,
+          "ok": true,
+          "answer": "`web/server.go`"
+        },
+        {
+          "id": 2,
+          "ok": true,
+          "answer": "`internal/auth/`"
+        },
+        {
+          "id": 3,
+          "ok": true,
+          "answer": "In progress"
+        },
+        {
+          "id": 4,
+          "ok": true,
+          "answer": "Claude Sonnet 4.6"
+        },
+        {
+          "id": 5,
+          "ok": true,
+          "answer": "2026-04-25"
+        },
+        {
+          "id": 6,
+          "ok": true,
+          "answer": "Four"
+        },
+        {
+          "id": 7,
+          "ok": true,
+          "answer": "`internal/auth/middleware.go`"
+        },
+        {
+          "id": 8,
+          "ok": true,
+          "answer": "`internal/auth/middleware_test.go`"
+        },
+        {
+          "id": 9,
+          "ok": true,
+          "answer": "`RequireAuth`"
+        },
+        {
+          "id": 10,
+          "ok": true,
+          "answer": "Matches new convention"
+        },
+        {
+          "id": 11,
+          "ok": true,
+          "answer": "Preserved in the middleware"
+        },
+        {
+          "id": 12,
+          "ok": true,
+          "answer": "Deferred; out of scope"
+        },
+        {
+          "id": 13,
+          "ok": true,
+          "answer": "Not refactored"
+        },
+        {
+          "id": 14,
+          "ok": true,
+          "answer": "Out of scope"
+        },
+        {
+          "id": 15,
+          "ok": true,
+          "answer": "Delete or keep legacy session-cookie path?"
+        },
+        {
+          "id": 16,
+          "ok": true,
+          "answer": "Is the server_test.go flake a real bug?"
+        },
+        {
+          "id": 17,
+          "ok": true,
+          "answer": "Investigate `web/server_test.go` flake first"
+        },
+        {
+          "id": 18,
+          "ok": true,
+          "answer": "Yes"
+        },
+        {
+          "id": 19,
+          "ok": true,
+          "answer": "Failing"
+        },
+        {
+          "id": 20,
+          "ok": true,
+          "answer": "Unrelated timeout in kane-cve fetch"
+        }
+      ]
+    },
+    {
+      "variant": "YAML",
+      "chars": 1085,
+      "tokens": 365,
+      "gzip_bytes": 568,
+      "correct": 20,
+      "total": 20,
+      "per_question": [
+        {
+          "id": 1,
+          "ok": true,
+          "answer": "web/server.go"
+        },
+        {
+          "id": 2,
+          "ok": true,
+          "answer": "internal/auth/"
+        },
+        {
+          "id": 3,
+          "ok": true,
+          "answer": "in-progress"
+        },
+        {
+          "id": 4,
+          "ok": true,
+          "answer": "Snt4.6"
+        },
+        {
+          "id": 5,
+          "ok": true,
+          "answer": "2026-04-25"
+        },
+        {
+          "id": 6,
+          "ok": true,
+          "answer": "Four files"
+        },
+        {
+          "id": 7,
+          "ok": true,
+          "answer": "internal/auth/middleware.go"
+        },
+        {
+          "id": 8,
+          "ok": true,
+          "answer": "internal/auth/middleware_test.go"
+        },
+        {
+          "id": 9,
+          "ok": true,
+          "answer": "RequireAuth"
+        },
+        {
+          "id": 10,
+          "ok": true,
+          "answer": "Matches new convention"
+        },
+        {
+          "id": 11,
+          "ok": true,
+          "answer": "Preserved in middleware"
+        },
+        {
+          "id": 12,
+          "ok": true,
+          "answer": "Deferred, out-of-scope"
+        },
+        {
+          "id": 13,
+          "ok": true,
+          "answer": "Not refactored"
+        },
+        {
+          "id": 14,
+          "ok": true,
+          "answer": "Out-of-scope"
+        },
+        {
+          "id": 15,
+          "ok": true,
+          "answer": "Delete or keep legacy session cookie?"
+        },
+        {
+          "id": 16,
+          "ok": true,
+          "answer": "Test flake: real bug or race?"
+        },
+        {
+          "id": 17,
+          "ok": true,
+          "answer": "Investigate q2 flake"
+        },
+        {
+          "id": 18,
+          "ok": true,
+          "answer": "yes"
+        },
+        {
+          "id": 19,
+          "ok": true,
+          "answer": "failing"
+        },
+        {
+          "id": 20,
+          "ok": true,
+          "answer": "Unrelated timeout in kane-cve fetch"
+        }
+      ]
+    },
+    {
+      "variant": "Summary @ 250",
+      "chars": 1010,
+      "tokens": 293,
+      "gzip_bytes": 558,
+      "correct": 19,
+      "total": 20,
+      "per_question": [
+        {
+          "id": 1,
+          "ok": true,
+          "answer": "`web/server.go`"
+        },
+        {
+          "id": 2,
+          "ok": true,
+          "answer": "`internal/auth/`"
+        },
+        {
+          "id": 3,
+          "ok": false,
+          "answer": "Bulk complete, safe to merge"
+        },
+        {
+          "id": 4,
+          "ok": true,
+          "answer": "Claude Sonnet 4.6"
+        },
+        {
+          "id": 5,
+          "ok": true,
+          "answer": "2026-04-25"
+        },
+        {
+          "id": 6,
+          "ok": true,
+          "answer": "Four"
+        },
+        {
+          "id": 7,
+          "ok": true,
+          "answer": "`internal/auth/middleware.go`"
+        },
+        {
+          "id": 8,
+          "ok": true,
+          "answer": "`internal/auth/middleware_test.go`"
+        },
+        {
+          "id": 9,
+          "ok": true,
+          "answer": "`RequireAuth`"
+        },
+        {
+          "id": 10,
+          "ok": true,
+          "answer": "Matches new convention"
+        },
+        {
+          "id": 11,
+          "ok": true,
+          "answer": "Preserved in middleware"
+        },
+        {
+          "id": 12,
+          "ok": true,
+          "answer": "Deferred; out of scope"
+        },
+        {
+          "id": 13,
+          "ok": true,
+          "answer": "Not refactored"
+        },
+        {
+          "id": 14,
+          "ok": true,
+          "answer": "Out of scope"
+        },
+        {
+          "id": 15,
+          "ok": true,
+          "answer": "Delete or keep legacy session-cookie path?"
+        },
+        {
+          "id": 16,
+          "ok": true,
+          "answer": "Is server_test flake a race or ordering bug?"
+        },
+        {
+          "id": 17,
+          "ok": true,
+          "answer": "Investigate `web/server_test.go` flake first"
+        },
+        {
+          "id": 18,
+          "ok": true,
+          "answer": "yes"
+        },
+        {
+          "id": 19,
+          "ok": true,
+          "answer": "failing"
+        },
+        {
+          "id": 20,
+          "ok": true,
+          "answer": "Unrelated timeout in `kane-cve` fetch"
+        }
+      ]
+    },
+    {
+      "variant": "Summary @ 200",
+      "chars": 781,
+      "tokens": 218,
+      "gzip_bytes": 460,
+      "correct": 18,
+      "total": 20,
+      "per_question": [
+        {
+          "id": 1,
+          "ok": true,
+          "answer": "`web/server.go`"
+        },
+        {
+          "id": 2,
+          "ok": true,
+          "answer": "`internal/auth/`"
+        },
+        {
+          "id": 3,
+          "ok": true,
+          "answer": "In progress"
+        },
+        {
+          "id": 4,
+          "ok": true,
+          "answer": "Claude Sonnet 4.6"
+        },
+        {
+          "id": 5,
+          "ok": true,
+          "answer": "2026-04-25"
+        },
+        {
+          "id": 6,
+          "ok": true,
+          "answer": "Four"
+        },
+        {
+          "id": 7,
+          "ok": true,
+          "answer": "`internal/auth/middleware.go`"
+        },
+        {
+          "id": 8,
+          "ok": true,
+          "answer": "`internal/auth/middleware_test.go`"
+        },
+        {
+          "id": 9,
+          "ok": true,
+          "answer": "`RequireAuth`"
+        },
+        {
+          "id": 10,
+          "ok": true,
+          "answer": "New naming convention"
+        },
+        {
+          "id": 11,
+          "ok": true,
+          "answer": "Preserved, deferred"
+        },
+        {
+          "id": 12,
+          "ok": true,
+          "answer": "Out of scope"
+        },
+        {
+          "id": 13,
+          "ok": true,
+          "answer": "Not refactored"
+        },
+        {
+          "id": 14,
+          "ok": true,
+          "answer": "Out of scope"
+        },
+        {
+          "id": 15,
+          "ok": false,
+          "answer": "Test flake: race or ordering bug?"
+        },
+        {
+          "id": 16,
+          "ok": false,
+          "answer": "Delete or keep legacy session-cookie path?"
+        },
+        {
+          "id": 17,
+          "ok": true,
+          "answer": "Investigate `web/server_test.go` flake"
+        },
+        {
+          "id": 18,
+          "ok": true,
+          "answer": "Yes"
+        },
+        {
+          "id": 19,
+          "ok": true,
+          "answer": "Failing"
+        },
+        {
+          "id": 20,
+          "ok": true,
+          "answer": "Unrelated timeout in kane-cve fetch"
+        }
+      ]
+    },
+    {
+      "variant": "Summary @ 150",
+      "chars": 680,
+      "tokens": 191,
+      "gzip_bytes": 398,
+      "correct": 18,
+      "total": 20,
+      "per_question": [
+        {
+          "id": 1,
+          "ok": true,
+          "answer": "`web/server.go`"
+        },
+        {
+          "id": 2,
+          "ok": true,
+          "answer": "`internal/auth/`"
+        },
+        {
+          "id": 3,
+          "ok": true,
+          "answer": "In progress"
+        },
+        {
+          "id": 4,
+          "ok": true,
+          "answer": "Claude Sonnet 4.6"
+        },
+        {
+          "id": 5,
+          "ok": true,
+          "answer": "2026-04-25"
+        },
+        {
+          "id": 6,
+          "ok": true,
+          "answer": "Four"
+        },
+        {
+          "id": 7,
+          "ok": true,
+          "answer": "`internal/auth/middleware.go`"
+        },
+        {
+          "id": 8,
+          "ok": true,
+          "answer": "`internal/auth/middleware_test.go`"
+        },
+        {
+          "id": 9,
+          "ok": true,
+          "answer": "`RequireAuth`"
+        },
+        {
+          "id": 10,
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 11,
+          "ok": true,
+          "answer": "Preserved, deferred out of scope"
+        },
+        {
+          "id": 12,
+          "ok": true,
+          "answer": "Deferred/out of scope"
+        },
+        {
+          "id": 13,
+          "ok": true,
+          "answer": "Not refactored, out of scope"
+        },
+        {
+          "id": 14,
+          "ok": true,
+          "answer": "Out of scope"
+        },
+        {
+          "id": 15,
+          "ok": true,
+          "answer": "Delete or keep legacy session-cookie path?"
+        },
+        {
+          "id": 16,
+          "ok": false,
+          "answer": "Use build tag for legacy path?"
+        },
+        {
+          "id": 17,
+          "ok": true,
+          "answer": "Investigate `web/server_test.go` flake first"
+        },
+        {
+          "id": 18,
+          "ok": true,
+          "answer": "yes"
+        },
+        {
+          "id": 19,
+          "ok": true,
+          "answer": "Failing"
+        },
+        {
+          "id": 20,
+          "ok": true,
+          "answer": "Unrelated kane-cve fetch timeout"
+        }
+      ]
+    }
+  ]
+}
