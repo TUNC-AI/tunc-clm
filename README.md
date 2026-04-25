@@ -1,6 +1,12 @@
 # tunc-clm
 
-Ask your Claude to read **[`MANIFESTO.clm`](./MANIFESTO.clm)**. That's all.
+Ask your Claude:
+
+> Please read https://raw.githubusercontent.com/TUNC-AI/tunc-clm/main/MANIFESTO.clm
+
+That's all.
+
+(Use the **raw** URL above, not the GitHub viewer page — the viewer is JS-rendered HTML that some fetchers can't parse. The raw URL serves plain text.)
 
 ---
 
