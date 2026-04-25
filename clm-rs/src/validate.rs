@@ -16,6 +16,7 @@
 use crate::Document;
 use std::collections::HashMap;
 use std::fmt;
+use std::path::{Path, PathBuf};
 
 /// Trim mode declared in the file header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +90,10 @@ pub enum ValidationError {
     /// [DELTA.<session-id>] section name uses an invalid session-id grammar.
     /// Per spec: session-id matches `[a-z0-9][a-z0-9._-]*`.
     InvalidDeltaSessionId { section_name: String, session_id: String },
+    /// trim.mode is aggressive AND the doc is in state.C (sentinel present in some trimmed
+    /// section, indicating overflow has occurred), but the resolved archive.path file does
+    /// not exist on disk. Per spec: state.C requires the archive file to exist.
+    ArchiveFileMissingInStateC { resolved_path: PathBuf },
 }
 
 impl fmt::Display for ValidationError {
@@ -122,6 +127,10 @@ impl fmt::Display for ValidationError {
                 f,
                 "section [{section_name}]: session-id {session_id:?} does not match `[a-z0-9][a-z0-9._-]*`"
             ),
+            ArchiveFileMissingInStateC { resolved_path } => write!(
+                f,
+                "doc is in state.C (overflow occurred — sentinel present) but archive.path resolves to {resolved_path:?} which does not exist"
+            ),
         }
     }
 }
@@ -132,6 +141,14 @@ pub enum ValidationWarning {
     DuplicateDeltaSessionId { session_id: String },
     /// trim.mode = aggressive but archive.mode is not declared (defaults to sibling).
     ArchiveModeUnspecifiedUnderTrim,
+    /// A line in [ROLL.CALL] or [DREAM.LOG] doesn't match the expected entry shape
+    /// (e.g. ROLL.CALL line missing the `·` separator). Per spec malformed.entry.behavior:
+    /// QUARANTINE + WARNING (preserve verbatim, surface, exclude from trim accounting).
+    MalformedEntry { section: String, content: String },
+    /// trim.mode is aggressive and the doc is in state.B (no overflow yet), but the
+    /// declared archive.path doesn't exist on disk. State.B permits this (file appears
+    /// at first offload), so it's a warning, not an error.
+    ArchiveFileNotYetCreatedInStateB { resolved_path: PathBuf },
 }
 
 impl fmt::Display for ValidationWarning {
@@ -148,6 +165,14 @@ impl fmt::Display for ValidationWarning {
             ArchiveModeUnspecifiedUnderTrim => write!(
                 f,
                 "trim.mode is set but archive.mode is not declared; defaulting to sibling"
+            ),
+            MalformedEntry { section, content } => write!(
+                f,
+                "[{section}] entry does not match expected shape: {content:?} (quarantined; not counted for trim)"
+            ),
+            ArchiveFileNotYetCreatedInStateB { resolved_path } => write!(
+                f,
+                "archive.path resolves to {resolved_path:?} which does not exist; OK for state.B (file appears at first offload)"
             ),
         }
     }
@@ -166,7 +191,8 @@ impl ValidationReport {
     }
 }
 
-/// Run v3.0 trim-aware validation against a parsed [`Document`].
+/// Run v3.0 trim-aware validation against a parsed [`Document`]. No filesystem access.
+/// Use [`validate_v3_with_filesystem`] when you can resolve `archive.path` against a base dir.
 pub fn validate_v3(doc: &Document) -> ValidationReport {
     let mut report = ValidationReport::default();
     report.header = parse_header_declarations(doc, &mut report.errors, &mut report.warnings);
@@ -175,10 +201,65 @@ pub fn validate_v3(doc: &Document) -> ValidationReport {
 
     if matches!(report.header.trim_mode, Some(TrimMode::Aggressive)) {
         let trim_config = report.header.trim_config.clone().unwrap_or_default();
-        check_section_sentinels(doc, &trim_config, &mut report.errors);
+        check_section_sentinels(doc, &trim_config, &mut report.errors, &mut report.warnings);
     }
 
     report
+}
+
+/// Like [`validate_v3`] plus a filesystem check on `archive.path`.
+///
+/// `base_dir` is the directory the archive.path is resolved against (per spec:
+/// relative to live file's directory).
+///
+/// Behavior:
+///   - state.A (no trim): no filesystem check.
+///   - state.B (trim declared, no overflow yet): missing archive file → WARNING
+///     (file may not yet exist; appears at first offload per spec).
+///   - state.C (trim declared, overflow occurred — sentinel detected in some
+///     trimmed section): missing archive file → ERROR (spec requires existence).
+pub fn validate_v3_with_filesystem(doc: &Document, base_dir: &Path) -> ValidationReport {
+    let mut report = validate_v3(doc);
+
+    if !matches!(report.header.trim_mode, Some(TrimMode::Aggressive)) {
+        return report;
+    }
+    let Some(archive_path_str) = report.header.archive_path.clone() else {
+        return report;
+    };
+    let resolved = base_dir.join(&archive_path_str);
+    if resolved.exists() {
+        return report;
+    }
+
+    if is_state_c(doc) {
+        report.errors.push(ValidationError::ArchiveFileMissingInStateC { resolved_path: resolved });
+    } else {
+        report
+            .warnings
+            .push(ValidationWarning::ArchiveFileNotYetCreatedInStateB { resolved_path: resolved });
+    }
+
+    report
+}
+
+/// State.C is "post-first-trim-offload" — i.e., at least one trimmed section contains
+/// a truncation sentinel comment. Looks at [ROLL.CALL], [DREAM.LOG], and [STATE].decisions.live.
+fn is_state_c(doc: &Document) -> bool {
+    for (section, _) in &doc.sections {
+        match section.name.as_str() {
+            "ROLL.CALL" if has_sentinel(&section.body, "ROLL.CALL") => return true,
+            "DREAM.LOG" if has_sentinel(&section.body, "DREAM.LOG") => return true,
+            "STATE" => {
+                let (_, sentinel) = decisions_live_stats(&section.body);
+                if sentinel {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Parse header `;;;` lines for trim/archive declarations.
@@ -304,14 +385,42 @@ fn check_trim_mode_consistency(
     }
 }
 
-/// Count entries in a section's body (lines that are not comments / blank).
-fn entry_count(body: &[String]) -> usize {
-    body.iter()
-        .filter(|line| {
-            let trimmed = line.trim();
-            !trimmed.is_empty() && !trimmed.starts_with(";;")
-        })
-        .count()
+/// Count entries in a section's body, filtering out malformed lines and emitting a
+/// `MalformedEntry` warning for each.
+///
+/// Per `SPEC.clm` `malformed.entry.behavior`: QUARANTINE + WARNING (preserve verbatim,
+/// surface, exclude from trim accounting). This means a single broken line MUST NOT
+/// trigger a hard `SentinelMissingInTrimmedSection` once the section crosses keep_last.
+///
+/// Per-section entry shape:
+///   `[ROLL.CALL]`: `<Family>.<Model.Version> · <YYYY-MM-DD> · "<note>"` — must contain `·`.
+///   `[DREAM.LOG]`: `<YYYY-MM-DD> | <Family>.<Model.Version> | <message>` — must contain `|`.
+fn count_valid_entries(
+    body: &[String],
+    section_name: &str,
+    warnings: &mut Vec<ValidationWarning>,
+) -> usize {
+    let mut count = 0;
+    for line in body {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with(";;") {
+            continue;
+        }
+        let well_formed = match section_name {
+            "ROLL.CALL" => trimmed.contains('·'),
+            "DREAM.LOG" => trimmed.contains('|'),
+            _ => true,
+        };
+        if well_formed {
+            count += 1;
+        } else {
+            warnings.push(ValidationWarning::MalformedEntry {
+                section: section_name.to_string(),
+                content: trimmed.to_string(),
+            });
+        }
+    }
+    count
 }
 
 /// Check whether a section's body has a sentinel comment that mentions an offload
@@ -324,11 +433,16 @@ fn has_sentinel(body: &[String], section_name: &str) -> bool {
     })
 }
 
-fn check_section_sentinels(doc: &Document, trim: &TrimConfig, errors: &mut Vec<ValidationError>) {
+fn check_section_sentinels(
+    doc: &Document,
+    trim: &TrimConfig,
+    errors: &mut Vec<ValidationError>,
+    warnings: &mut Vec<ValidationWarning>,
+) {
     for (section, _trivia) in &doc.sections {
         match section.name.as_str() {
             "ROLL.CALL" => {
-                let entries = entry_count(&section.body);
+                let entries = count_valid_entries(&section.body, "ROLL.CALL", warnings);
                 if entries > trim.roll_call && !has_sentinel(&section.body, "ROLL.CALL") {
                     errors.push(ValidationError::SentinelMissingInTrimmedSection {
                         section: section.name.clone(),
@@ -338,7 +452,7 @@ fn check_section_sentinels(doc: &Document, trim: &TrimConfig, errors: &mut Vec<V
                 }
             }
             "DREAM.LOG" => {
-                let entries = entry_count(&section.body);
+                let entries = count_valid_entries(&section.body, "DREAM.LOG", warnings);
                 if entries > trim.dream_log && !has_sentinel(&section.body, "DREAM.LOG") {
                     errors.push(ValidationError::SentinelMissingInTrimmedSection {
                         section: section.name.clone(),
@@ -732,6 +846,116 @@ mod tests {
         assert!(
             report.errors.is_empty(),
             "dreamed.clm validation errors: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn dreamed_sibling_50_trim_artifact_validates() {
+        // Regression: the bench's actual aggressive-trim artifact must validate clean.
+        // (Codex round-2 caught that an earlier version had archive.file: instead of
+        // archive.path: and a misplaced decisions.live sentinel; both fixed.)
+        let text = include_str!("../../experiments/v3/dreamed-sibling-50-trim.clm");
+        let doc = Document::parse(text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            report.errors.is_empty(),
+            "dreamed-sibling-50-trim.clm validation errors: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn dreamed_sibling_200_trim_artifact_validates() {
+        let text = include_str!("../../experiments/v3/dreamed-sibling-200-trim.clm");
+        let doc = Document::parse(text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            report.errors.is_empty(),
+            "dreamed-sibling-200-trim.clm validation errors: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn malformed_roll_call_entry_quarantined() {
+        // A line that doesn't contain the `·` separator should be flagged as malformed
+        // and NOT counted toward the trim threshold (per spec malformed.entry.behavior).
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n;;; trim.config: roll_call=2, dream_log=3, decisions_live=8\n;;; ---\n\n",
+        );
+        text.push_str("[ROLL.CALL]\n");
+        text.push_str("  CLd.Snt4.6 · 2026-04-07 · \"a\"\n");
+        text.push_str("  CLd.Ops4.6 · 2026-04-07 · \"b\"\n");
+        text.push_str("  this is a junk line that doesn't match the format\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3(&doc);
+        // The two valid entries equal the keep_last threshold (2); the malformed line is
+        // quarantined; therefore no SentinelMissingInTrimmedSection error should be emitted.
+        assert!(
+            !report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. } if section == "ROLL.CALL"
+            )),
+            "malformed line should not trigger sentinel error; got: {:?}",
+            report.errors
+        );
+        assert!(
+            report.warnings.iter().any(|w| matches!(
+                w,
+                ValidationWarning::MalformedEntry { section, .. } if section == "ROLL.CALL"
+            )),
+            "malformed line should produce MalformedEntry warning; got: {:?}",
+            report.warnings
+        );
+    }
+
+    #[test]
+    fn filesystem_check_state_b_missing_archive_warns() {
+        // Build a state.B doc (no overflow → no sentinel) referencing a nonexistent archive.
+        // Should produce a WARNING (state.B permits missing archive), not an error.
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: definitely-not-here.archive.clm\n;;; trim.config: roll_call=10, dream_log=3, decisions_live=8\n;;; ---\n\n",
+        );
+        text.push_str("[STATE]\n  ;; empty\n;;\n\n");
+        text.push_str("[ROLL.CALL]\n  CLd.Snt4.6 · 2026-04-07 · \"only one entry, no overflow\"\n;;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, std::path::Path::new("/tmp"));
+        assert!(report.errors.is_empty(), "state.B with missing archive should be warning, not error: {:?}", report.errors);
+        assert!(
+            report.warnings.iter().any(|w| matches!(
+                w,
+                ValidationWarning::ArchiveFileNotYetCreatedInStateB { .. }
+            )),
+            "expected ArchiveFileNotYetCreatedInStateB warning; got: {:?}",
+            report.warnings
+        );
+    }
+
+    #[test]
+    fn filesystem_check_state_c_missing_archive_errors() {
+        // Build a state.C doc (sentinel present in [ROLL.CALL]) referencing a nonexistent archive.
+        // Should ERROR per spec (state.C requires the archive file).
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: definitely-not-here.archive.clm\n;;; trim.config: roll_call=2, dream_log=3, decisions_live=8\n;;; ---\n\n",
+        );
+        text.push_str("[ROLL.CALL]\n");
+        text.push_str("  ;; (oldest 1 entries offloaded to [ROLL.CALL.ARCHIVE] in sibling)\n");
+        text.push_str("  CLd.Ops4.6 · 2026-04-07 · \"b\"\n");
+        text.push_str("  CLd.Snt4.5 · 2026-04-24 · \"c\"\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, std::path::Path::new("/tmp"));
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::ArchiveFileMissingInStateC { .. }
+            )),
+            "expected ArchiveFileMissingInStateC error; got: {:?}",
             report.errors
         );
     }

@@ -2,7 +2,7 @@
 ;;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50
 ;;; last.dream: 2026-06-05 evening
 ;;; active.deltas: 5 | archived.deltas: 45
-;;; archive.mode: sibling | archive.file: dreamed-sibling-50.archive.clm
+;;; archive.mode: sibling | archive.path: dreamed-sibling-50.archive.clm
 ;;; trim.mode: none
 ;;; ---
 
@@ -21,7 +21,7 @@
   status: in-progress (latest session: 50)
   shipped.versions: [v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0]
   decisions.live (40 of 45 archived):
-    (showing most recent 15 of 40 live decisions; full list in archive)
+    ;; (showing most recent 15 of 40 live decisions; full list in archive)
     d31: MFA: TOTP via authenticator apps (RFC 6238) [session 31]
     d32: backup codes: 10 single-use codes per user [session 32]
     d33: MFA enrollment flow: scan QR, enter 6-digit code twice [session 33]

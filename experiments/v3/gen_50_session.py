@@ -321,12 +321,17 @@ def render_dreamed(
         f"  shipped.versions: [v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0]",
         f"  decisions.live ({len(live_archived)} of {len(archived_events)} archived):",
     ]
+    # Sentinel BEFORE kept entries (per SPEC.clm decisions.live.delimitation:
+    # sentinel.placement: BEFORE the kept entries; matches the validator).
+    if trim_mode == "aggressive" and live_offloaded:
+        state_lines.append(
+            f"    ;; (oldest {len(live_offloaded)} live decisions offloaded to [DECISIONS.ARCHIVE] in sibling)"
+        )
+    elif trim_mode == "none" and len(live_archived) > 15:
+        state_lines.append(f"    ;; (showing most recent 15 of {len(live_archived)} live decisions; full list in archive)")
+        live_visible = live_archived[-15:]  # apply the cap when emitting in non-trim mode
     for e in live_visible:
         state_lines.append(f"    d{e.decision_id}: {_short(e.decision_text)} [session {e.session}]")
-    if trim_mode == "aggressive" and live_offloaded:
-        state_lines.append(f"    (oldest {len(live_offloaded)} live decisions: see [DECISIONS.ARCHIVE] in sibling)")
-    elif trim_mode == "none" and len(live_archived) > 15:
-        state_lines.insert(-15, f"    (showing most recent 15 of {len(live_archived)} live decisions; full list in archive)")
     reverted_str = ", ".join(f"d{i}" for i in sorted(reverted_ids)) or "(none)"
     superseded_str = ", ".join(f"d{i}" for i in sorted(superseded_ids)) or "(none)"
     state_lines += [
@@ -432,7 +437,7 @@ def render_dreamed(
             f";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: {depth}",
             f";;; last.dream: {date_for_session(last_dream)} evening",
             f";;; active.deltas: {len(active_events)} | archived.deltas: {len(archived_events)}",
-            f";;; archive.mode: sibling | archive.file: {archive_filename}",
+            f";;; archive.mode: sibling | archive.path: {archive_filename}",
             f";;; trim.mode: {trim_mode}",
             ";;; ---",
             "",
