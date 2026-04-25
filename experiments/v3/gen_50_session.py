@@ -396,7 +396,7 @@ def render_dreamed(
 
     live_doc = "\n".join(
         [
-            f";;; CLM/3.{ '1' if trim_mode == 'aggressive' else '0'} — handoff thread (dreamed every 5 sessions, sibling archive){title_suffix}",
+            f";;; CLM/3.0 — handoff thread (dreamed every 5 sessions, sibling archive){title_suffix}",
             ";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50",
             f";;; last.dream: {date_for_session(last_dream)} evening",
             f";;; active.deltas: {len(active_events)} | archived.deltas: {len(archived_events)}",
