@@ -290,7 +290,9 @@ pub fn validate_v3_with_filesystem(doc: &Document, base_dir: &Path) -> Validatio
         return report;
     };
     let resolved = base_dir.join(&archive_path_str);
-    if resolved.exists() {
+    // Per spec the archive must be a *file*; .exists() returns true for directories,
+    // so a stray `archive.path: .` would otherwise validate clean.
+    if resolved.is_file() {
         return report;
     }
 
@@ -306,7 +308,12 @@ pub fn validate_v3_with_filesystem(doc: &Document, base_dir: &Path) -> Validatio
 }
 
 /// State.C is "post-first-trim-offload" — i.e., at least one trimmed section contains
-/// a truncation sentinel comment. Looks at [ROLL.CALL], [DREAM.LOG], and [STATE].decisions.live.
+/// either a sentinel OR a `decisions.live (... of ... archived)` header that itself
+/// declares offload occurred. Looks at [ROLL.CALL], [DREAM.LOG], and [STATE].decisions.live.
+///
+/// The declared-offload check matters because a state.C doc with a missing sentinel is
+/// still state.C — the validator surfaces the missing-sentinel error, AND the filesystem
+/// check should still demand the archive file exist (per spec).
 fn is_state_c(doc: &Document) -> bool {
     for (section, _) in &doc.sections {
         match section.name.as_str() {
@@ -314,7 +321,7 @@ fn is_state_c(doc: &Document) -> bool {
             "DREAM.LOG" if has_sentinel(&section.body, "DREAM.LOG") => return true,
             "STATE" => {
                 let stats = decisions_live_stats(&section.body);
-                if stats.sentinel_present {
+                if stats.sentinel_present || stats.declared_offload_count.unwrap_or(0) > 0 {
                     return true;
                 }
             }
@@ -1096,6 +1103,78 @@ mod tests {
             )),
             "expected ArchiveFileNotYetCreatedInStateB warning; got: {:?}",
             report.warnings
+        );
+    }
+
+    #[test]
+    fn parser_permissive_validator_strict_for_delta_session_id() {
+        // Per Codex round-5 P2: parser must accept DELTA.<anything-identifier-shaped>
+        // so the validator can surface InvalidDeltaSessionId, instead of dying with
+        // UnexpectedTopLevelLine at parse time.
+        let mut text = String::from(";;; CLM/3.0 — test\n;;; test.clm\n;;; ---\n\n");
+        text.push_str("[STATE]\n  ;; empty\n;;\n\n");
+        text.push_str("[DELTA.session-X]\n  ;; X is uppercase, malformed session-id\n;;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parser should accept DELTA.<suffix>; let validator decide");
+        let report = validate_v3(&doc);
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::InvalidDeltaSessionId { session_id, .. } if session_id == "session-X"
+            )),
+            "expected InvalidDeltaSessionId for session-X; got: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn declared_offload_marks_state_c_for_filesystem_check() {
+        // Per Codex round-5 P2: a doc with `(last X of Y archived)` header but missing
+        // sentinel is still state.C — the filesystem check should ERROR (not warn) when
+        // the archive file is absent.
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: definitely-not-here.archive.clm\n;;; trim.config: roll_call=10, dream_log=3, decisions_live=8\n;;; ---\n\n",
+        );
+        text.push_str("[STATE]\n");
+        text.push_str("  decisions.live (last 8 of 23 archived):\n");
+        for i in 16..=23 {
+            text.push_str(&format!("    d{i}: keep me [session {}]\n", i * 2));
+        }
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, std::path::Path::new("/tmp"));
+        // Should have BOTH the missing-sentinel error AND the missing-archive-file error
+        // (state.C). The filesystem variant must not downgrade to state.B warning.
+        assert!(
+            report.errors.iter().any(|e| matches!(e, ValidationError::ArchiveFileMissingInStateC { .. })),
+            "expected ArchiveFileMissingInStateC (declared offload → state.C); got: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn archive_path_pointing_to_directory_errors_in_state_c() {
+        // Per Codex round-5 P3: .exists() returns true for directories; archive.path must
+        // resolve to a *file*. State.C with archive.path pointing at a dir should error.
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: .\n;;; trim.config: roll_call=2, dream_log=3, decisions_live=8\n;;; ---\n\n",
+        );
+        text.push_str("[ROLL.CALL]\n");
+        text.push_str("  ;; (oldest 1 entries offloaded to [ROLL.CALL.ARCHIVE] in sibling)\n");
+        text.push_str("  CLd.Ops4.6 · 2026-04-07 · \"b\"\n");
+        text.push_str("  CLd.Snt4.5 · 2026-04-24 · \"c\"\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, std::path::Path::new("/tmp"));
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::ArchiveFileMissingInStateC { .. }
+            )),
+            "expected ArchiveFileMissingInStateC when archive.path points to a directory; got: {:?}",
+            report.errors
         );
     }
 

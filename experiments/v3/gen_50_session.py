@@ -530,17 +530,21 @@ def render_prose_summary(events: List[Event]) -> str:
         "MFA support",
         "performance + security audit",
     ]
-    versions = ["v0.4.0", "v0.4.1", "v0.5.0", "v0.6.0", "v0.6.1", "v0.7.0"]
+    # All 6 versions belong to the canonical 50-session run; phase 5 ships both
+    # v0.6.1 (CVE patch) and v0.7.0 (WebAuthn). Codex round-5 P3 caught that
+    # slicing by phase count (5) dropped v0.7.0 from the summary.
+    versions_per_cycle = ["v0.4.0", "v0.4.1", "v0.5.0", "v0.6.0", "v0.6.1+v0.7.0"]
     phases_in_thread = min((depth + sessions_per_phase - 1) // sessions_per_phase, len(phase_names) * cycles)
 
     last_event = events[-1]
+    versions_shipped = versions_per_cycle[: min(len(versions_per_cycle), phases_in_thread)]
     out = [
         f"# Auth platform — {depth}-session evolution summary",
         "",
         f"**Status (final session, session {last_event.session}):** {last_event.author} on "
         f"{last_event.date} closed with `{_short(last_event.decision_text, 80)}`. "
         f"Across {phases_in_thread} phases ({cycles}× cycle{'s' if cycles > 1 else ''}), the project "
-        f"shipped {', '.join(versions[: min(len(versions), phases_in_thread)])}"
+        f"shipped {', '.join(versions_shipped)}"
         + (f" plus repeated re-shipping in cycles 2-{cycles}" if cycles > 1 else "")
         + ".",
         "",

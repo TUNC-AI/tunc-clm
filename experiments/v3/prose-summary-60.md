@@ -1,6 +1,6 @@
-# Auth platform — 50-session evolution summary
+# Auth platform — 60-session evolution summary
 
-**Status (final session, session 50):** Kmi.K2 on 2026-06-10 closed with `ship v0.7.0 with WebAuthn passkey`. Across 5 phases (1× cycle), the project shipped v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1+v0.7.0.
+**Status (final session, session 60):** Kmi.K2 on 2026-06-20 closed with `ship as v0.4.0 (cycle 2)`. Across 5 phases (1× cycle), the project shipped v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1.
 
 ## Phases
 
@@ -12,4 +12,4 @@
 
 ## Status
 
-All planned scope shipped across 5 phases over 50 sessions. Production-ready.
+All planned scope shipped across 5 phases over 60 sessions. Production-ready.

@@ -5,7 +5,7 @@
 | thread depth | raw append | CLM/3.0 (no trim) | **CLM/3.0 trim aggressive** | prose summary (lossy) |
 |---:|---:|---:|---:|---:|
 | 10 sessions  |  1,631 | 1,459 (−10.5%) | — | 235 |
-| 50 sessions  |  5,727 | 4,499 (−21.4%) | **2,607 (−54.5%)** | 415 |
+| 50 sessions  |  5,727 | 4,499 (−21.4%) | **2,607 (−54.5%)** | 422 |
 | 200 sessions | 23,552 | 16,027 (−32.0%) | **6,710 (−71.5%)** | 1,403 |
 
 *Note: previous numbers in this PR (e.g. -71.7% at 200 sessions, prose=438) were corrected after Codex review identified that prose summary was hardcoded at the 50-session text and cycle-N reverts pointed at cycle-1 decisions. Both bugs fixed; numbers re-measured. The architecture's claim (savings improve with depth) holds either way.*
@@ -108,7 +108,7 @@ Same auth-platform narrative continued: extraction → hardening → OAuth → M
 | Raw append | 1,631 | 5,727 | 23,552 | **×14.44** |
 | CLM/3.0 (no trim) | 1,459 | 4,499 | 16,027 | ×10.98 |
 | **CLM/3.0 trim aggressive** | — | **2,607** | **6,710** | **×2.57 (50→200)** |
-| Prose summary (lossy) | 235 | 415 | 1,403 | (loses lineage at every depth) |
+| Prose summary (lossy) | 235 | 422 | 1,403 | (loses lineage at every depth) |
 
 **The architecture's main claim, validated:** CLM/3.0 trim-live grows ×2.57 from 50→200 while raw append grows ×4.11 over the same range. Live-context savings improve from 54.5% at 50 sessions to **71.5% at 200 sessions** — and the curve continues toward an asymptote bounded by `[STATE]` size + active-deltas + trimmed-section keep_last.
 
