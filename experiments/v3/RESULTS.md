@@ -107,7 +107,7 @@ Same auth-platform narrative continued: extraction → hardening → OAuth → M
    - `[DREAM.LOG]`: last 3 entries (rest → `[DREAM.LOG.ARCHIVE]` in sibling)
    - `[STATE].decisions.live`: last 8 entries (rest → `[DECISIONS.ARCHIVE]` in sibling)
 
-   Trade: live doc shrinks ~42%, archive grows ~97% (because offload sections duplicate session-level info that was already implicit in the deltas). Total storage cost is ~8% higher (7,596 vs 7,033), but live-context cost is what matters per-call. **Canonical spec: [`SPEC-v3.0.clm`](SPEC-v3.0.clm)** — written *in* v3.0 trim-aggressive CLM (the format documenting itself), reviewed and signed by Cdx.5 across two review rounds (round-1: 7 ambiguities; round-2: 5 lifecycle gaps; all addressed in the spec).
+   Trade: live doc shrinks ~42%, archive grows ~97% (because offload sections duplicate session-level info that was already implicit in the deltas). Total storage cost is ~8% higher (7,596 vs 7,033), but live-context cost is what matters per-call. **Canonical spec: [`SPEC.clm`](../../SPEC.clm)** at repo root (promoted from `experiments/v3/SPEC-v3.0.clm` after round-4) — written *in* v3.0 trim-aggressive CLM (the format documenting itself), reviewed and signed by Cdx.5 across **four review rounds** (round-1: 7 ambiguities; round-2: 5 lifecycle gaps; round-3: 3 blockers + 8 validator ambiguities; round-4: all cleared). Cross-session continuity validated empirically: Cdx.5 closed/reopened Codex sessions between rounds and picked up self-identification each time.
 
    Honest re-pitch for the eventual README:
 
