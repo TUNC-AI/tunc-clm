@@ -1,8 +1,13 @@
-//! clm-rs — coarse-grained parser for the Claude Memory Format (CLM/1.0).
+//! clm-rs — coarse-grained parser for the Claude Memory Format.
 //!
-//! v0.1 treats section bodies as opaque text. The contract is round-trip:
+//! Supports both CLM/1.0 (Unicode brackets `⟦NAME⟧`) and CLM/2.x+/3.0
+//! (ASCII brackets `[NAME]`). The contract is round-trip:
 //! `serialize(parse(D)) == D` byte-for-byte for any document accepted by
-//! the grammar in `GRAMMAR.md`.
+//! the grammar.
+//!
+//! v3.0 trim-aware validation lives in [`validate`].
+
+pub mod validate;
 
 use std::fmt;
 
@@ -301,15 +306,57 @@ fn is_section_close(line: &str) -> bool {
 const SEC_OPEN: &str = "\u{27E6}"; // ⟦
 const SEC_CLOSE: &str = "\u{27E7}"; // ⟧
 
+/// Recognize both Unicode (`⟦NAME⟧`, CLM/1.0) and ASCII (`[NAME]`, CLM/2.x+/3.0)
+/// section opens. Returns the inner name on success.
 fn parse_section_open(line: &str) -> Option<String> {
     let trimmed = line.trim_end();
-    if !trimmed.starts_with(SEC_OPEN) || !trimmed.ends_with(SEC_CLOSE) {
-        return None;
+
+    // CLM/1.0: Unicode brackets
+    if let Some(inner) = trimmed
+        .strip_prefix(SEC_OPEN)
+        .and_then(|s| s.strip_suffix(SEC_CLOSE))
+    {
+        return validate_section_name(inner);
     }
-    let inner = &trimmed[SEC_OPEN.len()..trimmed.len() - SEC_CLOSE.len()];
+
+    // CLM/2.x+ / 3.0: ASCII brackets
+    if let Some(inner) = trimmed
+        .strip_prefix('[')
+        .and_then(|s| s.strip_suffix(']'))
+    {
+        return validate_section_name(inner);
+    }
+
+    None
+}
+
+/// Section names follow two patterns at the parser level:
+///   - Plain: `[A-Z][A-Z0-9.]*` (e.g. STATE, ROLL.CALL, MODEL.FAMILIES)
+///   - DELTA.<anything-that-looks-like-an-identifier-suffix>: parser is permissive here
+///     so malformed session-ids reach `validate_v3` (which emits InvalidDeltaSessionId)
+///     instead of dying with `UnexpectedTopLevelLine` at parse time. Spec-strict
+///     session-id grammar `[a-z0-9][a-z0-9._-]*` is enforced by the validator, not the parser.
+///
+/// Plain-section grammar stays strict: lowercase / underscores / dashes in non-DELTA
+/// names would let `[State]` slip past the parser and bypass validator name checks.
+fn validate_section_name(inner: &str) -> Option<String> {
     if inner.is_empty() {
         return None;
     }
+    // Permissive parse for DELTA.<suffix> — defer strict session-id check to validator.
+    if let Some(suffix) = inner.strip_prefix("DELTA.") {
+        if suffix.is_empty() {
+            return None;
+        }
+        let valid_chars = suffix.chars().all(|c| {
+            c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-'
+        });
+        if !valid_chars {
+            return None;
+        }
+        return Some(inner.to_string());
+    }
+    // Plain section name: strict.
     let mut chars = inner.chars();
     let first = chars.next()?;
     if !first.is_ascii_uppercase() {

@@ -2,7 +2,7 @@
 ;;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50
 ;;; last.dream: 2026-06-05 evening
 ;;; active.deltas: 5 | archived.deltas: 45
-;;; archive.mode: sibling | archive.file: dreamed-sibling-50-trim.archive.clm
+;;; archive.mode: sibling | archive.path: dreamed-sibling-50-trim.archive.clm
 ;;; trim.mode: aggressive
 ;;; ---
 
@@ -10,7 +10,7 @@
   > most-recent -> next | end of thread:
   thread depth: 50 sessions across 9 dream passes.
   active deltas since last dream: 5 (sessions 46-50).
-  archive.file: dreamed-sibling-50.archive.clm — 45 archived deltas.
+  archive.file: dreamed-sibling-50-trim.archive.clm — 45 archived deltas.
 ;;
 
 [STATE]
@@ -21,6 +21,7 @@
   status: in-progress (latest session: 50)
   shipped.versions: [v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0]
   decisions.live (40 of 45 archived):
+    ;; (oldest 32 live decisions offloaded to [DECISIONS.ARCHIVE] in sibling)
     d38: audit log MFA enable/disable events [session 38]
     d39: WebAuthn passkey support deferred to v0.7 [session 39]
     d40: ship MFA as v0.6.0 [session 40]
@@ -29,7 +30,6 @@
     d43: backport JWT migration to v0.6.x [session 43]
     d44: performance: middleware chain p95 800us -> 120us [session 44]
     d45: memory: session cache pool sync.Pool [session 45]
-    (oldest 32 live decisions: see [DECISIONS.ARCHIVE] in sibling)
   decisions.reverted: [d4, d14, d23, d24]
   decisions.superseded: [d3]
 ;;

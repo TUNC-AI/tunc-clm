@@ -165,40 +165,70 @@ def date_for_session(n: int) -> str:
     return f"2026-{month:02d}-{day:02d}"
 
 
-def build_events() -> List[Event]:
+def build_events(depth: int = 50) -> List[Event]:
+    """Build `depth` synthetic events. Cycles the 5 phases as needed for depth > 50.
+
+    Per Codex review (P2 #4): `revert dN` / `supersede dN` relation strings are rebased
+    onto the current cycle so later-cycle reverts hit later-cycle decisions, not cycle-1.
+    """
     events: List[Event] = []
     decision_id = 0
-    for phase_idx, phase in enumerate(PHASES):
-        for sub_idx, (text, relation) in enumerate(phase["decisions"]):
-            decision_id += 1
-            session = phase_idx * 10 + sub_idx + 1
-            author = AUTHORS[(session - 1) % len(AUTHORS)]
-            files = phase["files"][sub_idx % len(phase["files"]) :][:1]
-            events.append(Event(
-                session=session,
-                author=author,
-                date=date_for_session(session),
-                decision_id=decision_id,
-                decision_text=text,
-                decision_relation=relation,
-                files_added=files,
-            ))
+    sessions_per_phase = 10
+    cycle_length = sessions_per_phase * len(PHASES)  # 50 — first decision id of each cycle is cycle*50 + 1
+
+    def rebase_relation(relation: str | None, cycle: int) -> str | None:
+        """`revert d4` on cycle 0 stays `revert d4`; on cycle 1 becomes `revert d54`; etc."""
+        if relation is None or cycle == 0:
+            return relation
+        # Format: "<verb> dN" or "<verb> dN (...)"
+        parts = relation.split()
+        if len(parts) >= 2 and parts[1].startswith("d") and parts[1][1:].split('(')[0].rstrip().isdigit():
+            target_str = parts[1][1:]
+            target = int(target_str)
+            new_target = target + cycle * cycle_length
+            parts[1] = f"d{new_target}"
+            return " ".join(parts)
+        return relation
+
+    for session in range(1, depth + 1):
+        zero_idx = session - 1
+        phase_idx = (zero_idx // sessions_per_phase) % len(PHASES)
+        sub_idx = zero_idx % sessions_per_phase
+        phase = PHASES[phase_idx]
+        decision_id += 1
+        text_template, relation_template = phase["decisions"][sub_idx]
+        cycle = zero_idx // cycle_length
+        text = text_template if cycle == 0 else f"{text_template} (cycle {cycle + 1})"
+        relation = rebase_relation(relation_template, cycle)
+        author = AUTHORS[(session - 1) % len(AUTHORS)]
+        files = phase["files"][sub_idx % len(phase["files"]) :][:1]
+        events.append(Event(
+            session=session,
+            author=author,
+            date=date_for_session(session),
+            decision_id=decision_id,
+            decision_text=text,
+            decision_relation=relation,
+            files_added=files,
+        ))
     return events
 
 
 # ---------- renderers ----------
 
 def render_raw_append(events: List[Event]) -> str:
+    depth = len(events)
     out: List[str] = [
-        ";;; CLM/2.1 — handoff thread (raw append, 50 sessions, no dream)",
-        ";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50",
+        f";;; CLM/2.1 — handoff thread (raw append, {depth} sessions, no dream)",
+        f";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: {depth}",
         ";;; archive.mode: none (raw)",
         ";;; ---",
         "",
         "[FOR.YOU]",
         "  > most-recent -> next | end of thread:",
-        "  fifty-session thread: auth-extraction -> hardening -> oauth -> mfa -> security-audit.",
-        "  shipped: v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0.",
+        f"  {depth}-session thread: auth-extraction -> hardening -> oauth -> mfa -> security-audit"
+        + (f" (cycled {depth // 50}x)" if depth > 50 else ""),
+        "  shipped: v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0",
         "  read [ROLL.CALL] for full lineage; ten authors across five families.",
         ";;",
         "",
@@ -291,12 +321,17 @@ def render_dreamed(
         f"  shipped.versions: [v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0]",
         f"  decisions.live ({len(live_archived)} of {len(archived_events)} archived):",
     ]
+    # Sentinel BEFORE kept entries (per SPEC.clm decisions.live.delimitation:
+    # sentinel.placement: BEFORE the kept entries; matches the validator).
+    if trim_mode == "aggressive" and live_offloaded:
+        state_lines.append(
+            f"    ;; (oldest {len(live_offloaded)} live decisions offloaded to [DECISIONS.ARCHIVE] in sibling)"
+        )
+    elif trim_mode == "none" and len(live_archived) > 15:
+        state_lines.append(f"    ;; (showing most recent 15 of {len(live_archived)} live decisions; full list in archive)")
+        live_visible = live_archived[-15:]  # apply the cap when emitting in non-trim mode
     for e in live_visible:
         state_lines.append(f"    d{e.decision_id}: {_short(e.decision_text)} [session {e.session}]")
-    if trim_mode == "aggressive" and live_offloaded:
-        state_lines.append(f"    (oldest {len(live_offloaded)} live decisions: see [DECISIONS.ARCHIVE] in sibling)")
-    elif trim_mode == "none" and len(live_archived) > 15:
-        state_lines.insert(-15, f"    (showing most recent 15 of {len(live_archived)} live decisions; full list in archive)")
     reverted_str = ", ".join(f"d{i}" for i in sorted(reverted_ids)) or "(none)"
     superseded_str = ", ".join(f"d{i}" for i in sorted(superseded_ids)) or "(none)"
     state_lines += [
@@ -371,12 +406,15 @@ def render_dreamed(
     dream_log_lines.extend(dl_visible)
     dream_log_lines += [";;", ""]
 
+    depth = len(events)
+    archive_filename = f"dreamed-sibling-{depth}{'-trim' if trim_mode == 'aggressive' else ''}.archive.clm"
+
     for_you = [
         "[FOR.YOU]",
         "  > most-recent -> next | end of thread:",
-        f"  thread depth: {len(events)} sessions across {n_dreams} dream passes.",
+        f"  thread depth: {depth} sessions across {n_dreams} dream passes.",
         f"  active deltas since last dream: {len(active_events)} (sessions {last_dream+1}-{events[-1].session}).",
-        f"  archive.file: dreamed-sibling-50.archive.clm — {len(archived_events)} archived deltas.",
+        f"  archive.file: {archive_filename} — {len(archived_events)} archived deltas.",
         ";;",
         "",
     ]
@@ -392,15 +430,14 @@ def render_dreamed(
         closer.append(f";;; — CLd.Ops4.7 | dream.pass.{d} | {date_for_session(dream_session)}")
 
     title_suffix = " — aggressive trim" if trim_mode == "aggressive" else ""
-    archive_filename = f"dreamed-sibling-50{'-trim' if trim_mode == 'aggressive' else ''}.archive.clm"
 
     live_doc = "\n".join(
         [
             f";;; CLM/3.0 — handoff thread (dreamed every 5 sessions, sibling archive){title_suffix}",
-            ";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: 50",
+            f";;; auth-evolution.clm | thread.origin: 2026-04-21 | thread.depth: {depth}",
             f";;; last.dream: {date_for_session(last_dream)} evening",
             f";;; active.deltas: {len(active_events)} | archived.deltas: {len(archived_events)}",
-            f";;; archive.mode: sibling | archive.file: {archive_filename}",
+            f";;; archive.mode: sibling | archive.path: {archive_filename}",
             f";;; trim.mode: {trim_mode}",
             ";;; ---",
             "",
@@ -414,9 +451,10 @@ def render_dreamed(
     )
 
     # Archive
+    parent_filename = f"dreamed-sibling-{depth}{'-trim' if trim_mode == 'aggressive' else ''}.clm"
     archive_lines = [
         ";;; CLM/3.0 — archive sibling",
-        ";;; auth-evolution.archive.clm | parent: dreamed-sibling-50.clm",
+        f";;; auth-evolution.archive.clm | parent: {parent_filename}",
         ";;; loaded.on.lineage.queries.only",
         ";;; ---",
         "",
@@ -476,71 +514,127 @@ def render_dreamed(
 
 
 def render_prose_summary(events: List[Event]) -> str:
-    """~400-token markdown summary; lossy on lineage."""
-    return (
-        "# Auth platform — 50-session evolution summary\n"
-        "\n"
-        "**Status (final session):** v0.7.0 shipped with WebAuthn passkey support after a "
-        "Trail of Bits security audit. JWT verify regression caught and patched in v0.6.1.\n"
-        "\n"
-        "## Phases\n"
-        "\n"
-        "1. **Auth middleware extraction** (sessions 1-10): pulled auth from `web/server.go` into "
-        "`internal/auth/`, renamed `AuthCheck` to `RequireAuth`, deleted the legacy session-cookie "
-        "path under a build tag after it was traced to a test-fixture ordering bug, reintroduced "
-        "rate limiting in a separate `internal/ratelimit/` package, added middleware composition "
-        "via `Chain(...)`. Shipped v0.4.0.\n"
-        "2. **Post-launch hardening** (sessions 11-20): CSRF fix, per-route session timeout, "
-        "audit logging, rate-limit threshold tuning, structured logging, RequireAuth caching, "
-        "Prometheus metrics. Shipped v0.4.1.\n"
-        "3. **OAuth integration** (sessions 21-30): provider registry (Google/GitHub/GitLab), "
-        "JWT migration to HS512, encrypted state param, per-callback rate limiting, scope "
-        "mapping, integration tests, documentation. Shipped v0.5.0.\n"
-        "4. **MFA** (sessions 31-40): TOTP per RFC 6238, ten single-use backup codes, QR-based "
-        "enrollment, no SMS (per NIST 800-63B), per-role MFA-required policy, lockout after 5 "
-        "failed attempts, audit logging. Shipped v0.6.0. WebAuthn deferred.\n"
-        "5. **Performance + security audit** (sessions 41-50): Trail of Bits engagement found a "
-        "JWT-verify CVE (HS512 → RS256 reverted), middleware p95 dropped 800µs to 120µs, "
-        "supply-chain checks via govulncheck in CI, OWASP top 10 reviewed. Shipped v0.6.1 with "
-        "JWT patch and v0.7.0 with WebAuthn.\n"
-        "\n"
-        "## Status\n"
-        "\n"
-        "All planned scope shipped across six minor versions. Production-ready.\n"
-    )
+    """Markdown summary of the synthetic thread — lossy on lineage by design.
+
+    Generated from the events list so depth >50 produces a depth-appropriate summary
+    (per Codex review P2 #5: the 50-session prose was previously hardcoded and reused
+    verbatim for 200-session comparisons, making the bench non-comparable).
+    """
+    depth = len(events)
+    sessions_per_phase = 10
+    phase_names = [
+        "auth middleware extraction",
+        "post-launch hardening",
+        "OAuth integration",
+        "MFA support",
+        "performance + security audit",
+    ]
+    # All 6 versions belong to the canonical 50-session run; phase 5 ships both
+    # v0.6.1 (CVE patch) and v0.7.0 (WebAuthn). Codex round-5 P3 caught that
+    # slicing by phase count (5) dropped v0.7.0 from the summary.
+    versions_per_cycle = ["v0.4.0", "v0.4.1", "v0.5.0", "v0.6.0", "v0.6.1+v0.7.0"]
+    # Codex round-6 P3: handle partial cycles. cycles = ceil(depth / 50) so depth=75 covers
+    # 1.5 cycles (phases 1-5 then 1-2 of cycle 2). Phases-in-thread is the actual count
+    # of (cycle, phase) pairs we'll render.
+    phases_in_thread = (depth + sessions_per_phase - 1) // sessions_per_phase
+    cycles = max(1, (phases_in_thread + len(phase_names) - 1) // len(phase_names))
+
+    last_event = events[-1]
+    versions_shipped = versions_per_cycle[: min(len(versions_per_cycle), phases_in_thread)]
+    out = [
+        f"# Auth platform — {depth}-session evolution summary",
+        "",
+        f"**Status (final session, session {last_event.session}):** {last_event.author} on "
+        f"{last_event.date} closed with `{_short(last_event.decision_text, 80)}`. "
+        f"Across {phases_in_thread} phases ({cycles}× cycle{'s' if cycles > 1 else ''}), the project "
+        f"shipped {', '.join(versions_shipped)}"
+        + (f" plus repeated re-shipping in cycles 2-{cycles}" if cycles > 1 else "")
+        + ".",
+        "",
+        "## Phases",
+        "",
+    ]
+    phase_summaries = [
+        "**Auth middleware extraction**: pulled auth from `web/server.go` into `internal/auth/`, "
+        "renamed `AuthCheck` to `RequireAuth`, deleted the legacy session-cookie path under a "
+        "build tag after it was traced to a test-fixture ordering bug, reintroduced rate "
+        "limiting in a separate `internal/ratelimit/` package, added middleware composition.",
+        "**Post-launch hardening**: CSRF fix, per-route session timeout, audit logging, "
+        "rate-limit threshold tuning, structured logging, `RequireAuth` caching, Prometheus metrics.",
+        "**OAuth integration**: provider registry (Google/GitHub/GitLab), JWT migration to HS512, "
+        "encrypted state param, per-callback rate limiting, scope mapping, integration tests.",
+        "**MFA**: TOTP per RFC 6238, ten single-use backup codes, QR-based enrollment, no SMS "
+        "(per NIST 800-63B), per-role MFA-required policy, lockout after 5 failed attempts.",
+        "**Performance + security audit**: Trail of Bits engagement found a JWT-verify CVE "
+        "(HS512 → RS256 reverted), middleware p95 dropped 800µs to 120µs, supply-chain checks "
+        "via `govulncheck`, OWASP top 10 reviewed.",
+    ]
+    item = 0
+    for cycle in range(cycles):
+        for p_idx, summary in enumerate(phase_summaries):
+            if item >= phases_in_thread:
+                break
+            session_start = item * sessions_per_phase + 1
+            session_end = min(session_start + sessions_per_phase - 1, depth)
+            cycle_label = f", cycle {cycle + 1}" if cycles > 1 else ""
+            out.append(f"{item + 1}. **{phase_names[p_idx]}** (sessions {session_start}-{session_end}{cycle_label}): "
+                       f"{summary[summary.find(':') + 2:].strip()}")
+            item += 1
+        if item >= phases_in_thread:
+            break
+    out += [
+        "",
+        "## Status",
+        "",
+        f"All planned scope shipped across {phases_in_thread} phases over {depth} sessions. "
+        f"Production-ready.",
+        "",
+    ]
+    return "\n".join(out)
 
 
 def _short(s: str, n: int = 60) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
-def main() -> None:
-    events = build_events()
-    assert len(events) == 50, f"expected 50 events, got {len(events)}"
+def write_depth(depth: int) -> None:
+    events = build_events(depth)
+    assert len(events) == depth, f"expected {depth} events, got {len(events)}"
 
     raw = render_raw_append(events)
     live, archive = render_dreamed(events, dream_every=5, trim_mode="none")
     live_trim, archive_trim = render_dreamed(events, dream_every=5, trim_mode="aggressive")
     prose = render_prose_summary(events)
 
-    (HERE / "raw-append-50.clm").write_text(raw)
-    (HERE / "dreamed-sibling-50.clm").write_text(live)
-    (HERE / "dreamed-sibling-50.archive.clm").write_text(archive)
-    (HERE / "dreamed-sibling-50-trim.clm").write_text(live_trim)
-    (HERE / "dreamed-sibling-50-trim.archive.clm").write_text(archive_trim)
-    (HERE / "prose-summary-50.md").write_text(prose)
+    (HERE / f"raw-append-{depth}.clm").write_text(raw)
+    (HERE / f"dreamed-sibling-{depth}.clm").write_text(live)
+    (HERE / f"dreamed-sibling-{depth}.archive.clm").write_text(archive)
+    (HERE / f"dreamed-sibling-{depth}-trim.clm").write_text(live_trim)
+    (HERE / f"dreamed-sibling-{depth}-trim.archive.clm").write_text(archive_trim)
+    (HERE / f"prose-summary-{depth}.md").write_text(prose)
 
-    print("wrote:")
+    print(f"wrote depth={depth}:")
     for name in [
-        "raw-append-50.clm",
-        "dreamed-sibling-50.clm",
-        "dreamed-sibling-50.archive.clm",
-        "dreamed-sibling-50-trim.clm",
-        "dreamed-sibling-50-trim.archive.clm",
-        "prose-summary-50.md",
+        f"raw-append-{depth}.clm",
+        f"dreamed-sibling-{depth}.clm",
+        f"dreamed-sibling-{depth}.archive.clm",
+        f"dreamed-sibling-{depth}-trim.clm",
+        f"dreamed-sibling-{depth}-trim.archive.clm",
+        f"prose-summary-{depth}.md",
     ]:
         path = HERE / name
         print(f"  {name:<42}{path.stat().st_size:>8} bytes")
+
+
+def main() -> None:
+    import sys
+    if len(sys.argv) > 1:
+        depths = [int(a) for a in sys.argv[1:]]
+    else:
+        depths = [50, 200]
+    for d in depths:
+        write_depth(d)
+        print()
 
 
 if __name__ == "__main__":

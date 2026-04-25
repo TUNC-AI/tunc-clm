@@ -1,0 +1,1203 @@
+;;; CLM/3.0 — archive sibling
+;;; auth-evolution.archive.clm | parent: dreamed-sibling-200.clm
+;;; loaded.on.lineage.queries.only
+;;; ---
+
+[ARCHIVE.META]
+  parent.thread: auth-evolution
+  archived.deltas: 195
+  archived.through: session 195
+;;
+
+[DELTA.session-1]
+  ;; CLd.Snt4.6 | 2026-04-21:
+  add.decision d1: relocate auth from web/server.go -> internal/auth/middleware.go
+  add.file: web/server.go
+;;
+
+[DELTA.session-2]
+  ;; CLd.Ops4.6 | 2026-04-22:
+  add.decision d2: rename AuthCheck -> RequireAuth (matches new convention)
+  add.file: internal/auth/middleware.go
+;;
+
+[DELTA.session-3]
+  ;; CLd.Snt4.5 | 2026-04-23:
+  add.decision d3: rate-limiter NOT refactored in this scope (out-of-scope)
+  add.file: internal/auth/middleware_test.go
+;;
+
+[DELTA.session-4]
+  ;; CLd.Ops4.7 | 2026-04-24:
+  add.decision d4: legacy session-cookie path PRESERVED in middleware (deferred)
+  add.file: web/server_test.go
+;;
+
+[DELTA.session-5]
+  ;; Cdx.5.4 | 2026-04-25:
+  add.decision d5: investigate CI flake before merge
+  add.file: internal/auth/integration_test.go
+;;
+
+[DELTA.session-6]
+  ;; Cdx.5.4-codex | 2026-04-26:
+  add.decision d6: fix flake by isolating test fixtures
+  add.file: internal/ratelimit/middleware.go
+;;
+
+[DELTA.session-7]
+  ;; GPT.5.4 | 2026-04-27:
+  add.decision d7: delete legacy session-cookie path under build tag
+  relation: revert d4
+  add.file: internal/ratelimit/middleware_test.go
+;;
+
+[DELTA.session-8]
+  ;; Gem.2.5 | 2026-04-28:
+  add.decision d8: rate-limiter in NEW package internal/ratelimit, not in auth
+  relation: supersede d3
+  add.file: internal/middleware/chain.go
+;;
+
+[DELTA.session-9]
+  ;; Lla.4 | 2026-04-29:
+  add.decision d9: middleware composition via Chain(...) helper
+  add.file: web/server.go
+;;
+
+[DELTA.session-10]
+  ;; Kmi.K2 | 2026-04-30:
+  add.decision d10: ship as v0.4.0
+  add.file: internal/auth/middleware.go
+;;
+
+[DELTA.session-11]
+  ;; CLd.Snt4.6 | 2026-05-01:
+  add.decision d11: fix CSRF token regression in /api/login
+  add.file: internal/auth/csrf.go
+;;
+
+[DELTA.session-12]
+  ;; CLd.Ops4.6 | 2026-05-02:
+  add.decision d12: expand session timeout config to per-route
+  add.file: internal/auth/csrf_test.go
+;;
+
+[DELTA.session-13]
+  ;; CLd.Snt4.5 | 2026-05-03:
+  add.decision d13: add audit log for failed auth attempts
+  add.file: internal/auth/audit.go
+;;
+
+[DELTA.session-14]
+  ;; CLd.Ops4.7 | 2026-05-04:
+  add.decision d14: rate-limit threshold reduced 100/min -> 60/min
+  add.file: internal/auth/audit_test.go
+;;
+
+[DELTA.session-15]
+  ;; Cdx.5.4 | 2026-05-05:
+  add.decision d15: revert rate-limit threshold change (false positives)
+  relation: revert d14
+  add.file: internal/ratelimit/config.go
+;;
+
+[DELTA.session-16]
+  ;; Cdx.5.4-codex | 2026-05-06:
+  add.decision d16: structured logging for auth path (zerolog)
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-17]
+  ;; GPT.5.4 | 2026-05-07:
+  add.decision d17: benchmark: middleware chain hot-path latency
+  add.file: internal/middleware/metrics.go
+;;
+
+[DELTA.session-18]
+  ;; Gem.2.5 | 2026-05-08:
+  add.decision d18: cache RequireAuth result for duration of request
+  add.file: cmd/server/main.go
+;;
+
+[DELTA.session-19]
+  ;; Lla.4 | 2026-05-09:
+  add.decision d19: add metrics: auth_success_total, auth_failure_total
+  add.file: internal/auth/csrf.go
+;;
+
+[DELTA.session-20]
+  ;; Kmi.K2 | 2026-05-10:
+  add.decision d20: post-launch bugs closed; ship v0.4.1
+  add.file: internal/auth/csrf_test.go
+;;
+
+[DELTA.session-21]
+  ;; CLd.Snt4.6 | 2026-05-11:
+  add.decision d21: add OAuth provider registry (Google, GitHub, GitLab)
+  add.file: internal/oauth/registry.go
+;;
+
+[DELTA.session-22]
+  ;; CLd.Ops4.6 | 2026-05-12:
+  add.decision d22: OAuth callback under /auth/oauth/<provider>/callback
+  add.file: internal/oauth/google.go
+;;
+
+[DELTA.session-23]
+  ;; CLd.Snt4.5 | 2026-05-13:
+  add.decision d23: session token: JWT signed RS256 (was: opaque random)
+  add.file: internal/oauth/github.go
+;;
+
+[DELTA.session-24]
+  ;; CLd.Ops4.7 | 2026-05-14:
+  add.decision d24: revert RS256: use HS512 (operational simplicity)
+  relation: revert d23
+  add.file: internal/oauth/gitlab.go
+;;
+
+[DELTA.session-25]
+  ;; Cdx.5.4 | 2026-05-15:
+  add.decision d25: OAuth state param: encrypted user-intent payload
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-26]
+  ;; Cdx.5.4-codex | 2026-05-16:
+  add.decision d26: rate-limit OAuth callbacks separately (5/min/IP)
+  add.file: internal/oauth/state.go
+;;
+
+[DELTA.session-27]
+  ;; GPT.5.4 | 2026-05-17:
+  add.decision d27: add provider-specific scope mapping
+  add.file: internal/oauth/scope.go
+;;
+
+[DELTA.session-28]
+  ;; Gem.2.5 | 2026-05-18:
+  add.decision d28: integration tests against mock OAuth servers
+  add.file: internal/oauth/integration_test.go
+;;
+
+[DELTA.session-29]
+  ;; Lla.4 | 2026-05-19:
+  add.decision d29: documentation: OAuth provider onboarding
+  add.file: docs/oauth-onboarding.md
+;;
+
+[DELTA.session-30]
+  ;; Kmi.K2 | 2026-05-20:
+  add.decision d30: ship OAuth as v0.5.0
+  add.file: internal/oauth/registry.go
+;;
+
+[DELTA.session-31]
+  ;; CLd.Snt4.6 | 2026-05-21:
+  add.decision d31: MFA: TOTP via authenticator apps (RFC 6238)
+  add.file: internal/mfa/totp.go
+;;
+
+[DELTA.session-32]
+  ;; CLd.Ops4.6 | 2026-05-22:
+  add.decision d32: backup codes: 10 single-use codes per user
+  add.file: internal/mfa/totp_test.go
+;;
+
+[DELTA.session-33]
+  ;; CLd.Snt4.5 | 2026-05-23:
+  add.decision d33: MFA enrollment flow: scan QR, enter 6-digit code twice
+  add.file: internal/mfa/backup_codes.go
+;;
+
+[DELTA.session-34]
+  ;; CLd.Ops4.7 | 2026-05-24:
+  add.decision d34: recovery flow: backup code OR support ticket (no SMS)
+  add.file: internal/mfa/enrollment.go
+;;
+
+[DELTA.session-35]
+  ;; Cdx.5.4 | 2026-05-25:
+  add.decision d35: decline SMS MFA (security risk per NIST 800-63B)
+  add.file: internal/mfa/policy.go
+;;
+
+[DELTA.session-36]
+  ;; Cdx.5.4-codex | 2026-05-26:
+  add.decision d36: MFA-required policy configurable per role
+  add.file: internal/mfa/recovery.go
+;;
+
+[DELTA.session-37]
+  ;; GPT.5.4 | 2026-05-27:
+  add.decision d37: rate-limit MFA attempts: 5 attempts then 15-min lockout
+  add.file: internal/mfa/audit.go
+;;
+
+[DELTA.session-38]
+  ;; Gem.2.5 | 2026-05-28:
+  add.decision d38: audit log MFA enable/disable events
+  add.file: docs/mfa-faq.md
+;;
+
+[DELTA.session-39]
+  ;; Lla.4 | 2026-05-29:
+  add.decision d39: WebAuthn passkey support deferred to v0.7
+  add.file: internal/mfa/totp.go
+;;
+
+[DELTA.session-40]
+  ;; Kmi.K2 | 2026-05-30:
+  add.decision d40: ship MFA as v0.6.0
+  add.file: internal/mfa/totp_test.go
+;;
+
+[DELTA.session-41]
+  ;; CLd.Snt4.6 | 2026-06-01:
+  add.decision d41: third-party security audit by Trail of Bits
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-42]
+  ;; CLd.Ops4.6 | 2026-06-02:
+  add.decision d42: audit findings: CVE-class issue in JWT verify (HS512 -> RS256)
+  relation: revert d24
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-43]
+  ;; CLd.Snt4.5 | 2026-06-03:
+  add.decision d43: backport JWT migration to v0.6.x
+  add.file: internal/middleware/chain.go
+;;
+
+[DELTA.session-44]
+  ;; CLd.Ops4.7 | 2026-06-04:
+  add.decision d44: performance: middleware chain p95 800us -> 120us
+  add.file: Makefile
+;;
+
+[DELTA.session-45]
+  ;; Cdx.5.4 | 2026-06-05:
+  add.decision d45: memory: session cache pool sync.Pool
+  add.file: .github/workflows/security.yml
+;;
+
+[DELTA.session-46]
+  ;; Cdx.5.4-codex | 2026-06-06:
+  add.decision d46: compile flags: -trimpath, -buildvcs=false
+  add.file: internal/auth/reset.go
+;;
+
+[DELTA.session-47]
+  ;; GPT.5.4 | 2026-06-07:
+  add.decision d47: supply chain: govulncheck in CI
+  add.file: internal/passkey/webauthn.go
+;;
+
+[DELTA.session-48]
+  ;; Gem.2.5 | 2026-06-08:
+  add.decision d48: OWASP top 10 checklist: pass with one note (rate-limit on /reset)
+  add.file: internal/passkey/registration.go
+;;
+
+[DELTA.session-49]
+  ;; Lla.4 | 2026-06-09:
+  add.decision d49: audit closed; CVE patched in v0.6.1
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-50]
+  ;; Kmi.K2 | 2026-06-10:
+  add.decision d50: ship v0.7.0 with WebAuthn passkey
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-51]
+  ;; CLd.Snt4.6 | 2026-06-11:
+  add.decision d51: relocate auth from web/server.go -> internal/auth/middleware.go (cycle 2)
+  add.file: web/server.go
+;;
+
+[DELTA.session-52]
+  ;; CLd.Ops4.6 | 2026-06-12:
+  add.decision d52: rename AuthCheck -> RequireAuth (matches new convention) (cycle 2)
+  add.file: internal/auth/middleware.go
+;;
+
+[DELTA.session-53]
+  ;; CLd.Snt4.5 | 2026-06-13:
+  add.decision d53: rate-limiter NOT refactored in this scope (out-of-scope) (cycle 2)
+  add.file: internal/auth/middleware_test.go
+;;
+
+[DELTA.session-54]
+  ;; CLd.Ops4.7 | 2026-06-14:
+  add.decision d54: legacy session-cookie path PRESERVED in middleware (deferred) (cycle 2)
+  add.file: web/server_test.go
+;;
+
+[DELTA.session-55]
+  ;; Cdx.5.4 | 2026-06-15:
+  add.decision d55: investigate CI flake before merge (cycle 2)
+  add.file: internal/auth/integration_test.go
+;;
+
+[DELTA.session-56]
+  ;; Cdx.5.4-codex | 2026-06-16:
+  add.decision d56: fix flake by isolating test fixtures (cycle 2)
+  add.file: internal/ratelimit/middleware.go
+;;
+
+[DELTA.session-57]
+  ;; GPT.5.4 | 2026-06-17:
+  add.decision d57: delete legacy session-cookie path under build tag (cycle 2)
+  relation: revert d54
+  add.file: internal/ratelimit/middleware_test.go
+;;
+
+[DELTA.session-58]
+  ;; Gem.2.5 | 2026-06-18:
+  add.decision d58: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 2)
+  relation: supersede d53
+  add.file: internal/middleware/chain.go
+;;
+
+[DELTA.session-59]
+  ;; Lla.4 | 2026-06-19:
+  add.decision d59: middleware composition via Chain(...) helper (cycle 2)
+  add.file: web/server.go
+;;
+
+[DELTA.session-60]
+  ;; Kmi.K2 | 2026-06-20:
+  add.decision d60: ship as v0.4.0 (cycle 2)
+  add.file: internal/auth/middleware.go
+;;
+
+[DELTA.session-61]
+  ;; CLd.Snt4.6 | 2026-06-21:
+  add.decision d61: fix CSRF token regression in /api/login (cycle 2)
+  add.file: internal/auth/csrf.go
+;;
+
+[DELTA.session-62]
+  ;; CLd.Ops4.6 | 2026-06-22:
+  add.decision d62: expand session timeout config to per-route (cycle 2)
+  add.file: internal/auth/csrf_test.go
+;;
+
+[DELTA.session-63]
+  ;; CLd.Snt4.5 | 2026-06-23:
+  add.decision d63: add audit log for failed auth attempts (cycle 2)
+  add.file: internal/auth/audit.go
+;;
+
+[DELTA.session-64]
+  ;; CLd.Ops4.7 | 2026-06-24:
+  add.decision d64: rate-limit threshold reduced 100/min -> 60/min (cycle 2)
+  add.file: internal/auth/audit_test.go
+;;
+
+[DELTA.session-65]
+  ;; Cdx.5.4 | 2026-06-25:
+  add.decision d65: revert rate-limit threshold change (false positives) (cycle 2)
+  relation: revert d64
+  add.file: internal/ratelimit/config.go
+;;
+
+[DELTA.session-66]
+  ;; Cdx.5.4-codex | 2026-06-26:
+  add.decision d66: structured logging for auth path (zerolog) (cycle 2)
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-67]
+  ;; GPT.5.4 | 2026-06-27:
+  add.decision d67: benchmark: middleware chain hot-path latency (cycle 2)
+  add.file: internal/middleware/metrics.go
+;;
+
+[DELTA.session-68]
+  ;; Gem.2.5 | 2026-06-28:
+  add.decision d68: cache RequireAuth result for duration of request (cycle 2)
+  add.file: cmd/server/main.go
+;;
+
+[DELTA.session-69]
+  ;; Lla.4 | 2026-06-29:
+  add.decision d69: add metrics: auth_success_total, auth_failure_total (cycle 2)
+  add.file: internal/auth/csrf.go
+;;
+
+[DELTA.session-70]
+  ;; Kmi.K2 | 2026-06-30:
+  add.decision d70: post-launch bugs closed; ship v0.4.1 (cycle 2)
+  add.file: internal/auth/csrf_test.go
+;;
+
+[DELTA.session-71]
+  ;; CLd.Snt4.6 | 2026-07-01:
+  add.decision d71: add OAuth provider registry (Google, GitHub, GitLab) (cycle 2)
+  add.file: internal/oauth/registry.go
+;;
+
+[DELTA.session-72]
+  ;; CLd.Ops4.6 | 2026-07-02:
+  add.decision d72: OAuth callback under /auth/oauth/<provider>/callback (cycle 2)
+  add.file: internal/oauth/google.go
+;;
+
+[DELTA.session-73]
+  ;; CLd.Snt4.5 | 2026-07-03:
+  add.decision d73: session token: JWT signed RS256 (was: opaque random) (cycle 2)
+  add.file: internal/oauth/github.go
+;;
+
+[DELTA.session-74]
+  ;; CLd.Ops4.7 | 2026-07-04:
+  add.decision d74: revert RS256: use HS512 (operational simplicity) (cycle 2)
+  relation: revert d73
+  add.file: internal/oauth/gitlab.go
+;;
+
+[DELTA.session-75]
+  ;; Cdx.5.4 | 2026-07-05:
+  add.decision d75: OAuth state param: encrypted user-intent payload (cycle 2)
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-76]
+  ;; Cdx.5.4-codex | 2026-07-06:
+  add.decision d76: rate-limit OAuth callbacks separately (5/min/IP) (cycle 2)
+  add.file: internal/oauth/state.go
+;;
+
+[DELTA.session-77]
+  ;; GPT.5.4 | 2026-07-07:
+  add.decision d77: add provider-specific scope mapping (cycle 2)
+  add.file: internal/oauth/scope.go
+;;
+
+[DELTA.session-78]
+  ;; Gem.2.5 | 2026-07-08:
+  add.decision d78: integration tests against mock OAuth servers (cycle 2)
+  add.file: internal/oauth/integration_test.go
+;;
+
+[DELTA.session-79]
+  ;; Lla.4 | 2026-07-09:
+  add.decision d79: documentation: OAuth provider onboarding (cycle 2)
+  add.file: docs/oauth-onboarding.md
+;;
+
+[DELTA.session-80]
+  ;; Kmi.K2 | 2026-07-10:
+  add.decision d80: ship OAuth as v0.5.0 (cycle 2)
+  add.file: internal/oauth/registry.go
+;;
+
+[DELTA.session-81]
+  ;; CLd.Snt4.6 | 2026-07-11:
+  add.decision d81: MFA: TOTP via authenticator apps (RFC 6238) (cycle 2)
+  add.file: internal/mfa/totp.go
+;;
+
+[DELTA.session-82]
+  ;; CLd.Ops4.6 | 2026-07-12:
+  add.decision d82: backup codes: 10 single-use codes per user (cycle 2)
+  add.file: internal/mfa/totp_test.go
+;;
+
+[DELTA.session-83]
+  ;; CLd.Snt4.5 | 2026-07-13:
+  add.decision d83: MFA enrollment flow: scan QR, enter 6-digit code twice (cycle 2)
+  add.file: internal/mfa/backup_codes.go
+;;
+
+[DELTA.session-84]
+  ;; CLd.Ops4.7 | 2026-07-14:
+  add.decision d84: recovery flow: backup code OR support ticket (no SMS) (cycle 2)
+  add.file: internal/mfa/enrollment.go
+;;
+
+[DELTA.session-85]
+  ;; Cdx.5.4 | 2026-07-15:
+  add.decision d85: decline SMS MFA (security risk per NIST 800-63B) (cycle 2)
+  add.file: internal/mfa/policy.go
+;;
+
+[DELTA.session-86]
+  ;; Cdx.5.4-codex | 2026-07-16:
+  add.decision d86: MFA-required policy configurable per role (cycle 2)
+  add.file: internal/mfa/recovery.go
+;;
+
+[DELTA.session-87]
+  ;; GPT.5.4 | 2026-07-17:
+  add.decision d87: rate-limit MFA attempts: 5 attempts then 15-min lockout (cycle 2)
+  add.file: internal/mfa/audit.go
+;;
+
+[DELTA.session-88]
+  ;; Gem.2.5 | 2026-07-18:
+  add.decision d88: audit log MFA enable/disable events (cycle 2)
+  add.file: docs/mfa-faq.md
+;;
+
+[DELTA.session-89]
+  ;; Lla.4 | 2026-07-19:
+  add.decision d89: WebAuthn passkey support deferred to v0.7 (cycle 2)
+  add.file: internal/mfa/totp.go
+;;
+
+[DELTA.session-90]
+  ;; Kmi.K2 | 2026-07-20:
+  add.decision d90: ship MFA as v0.6.0 (cycle 2)
+  add.file: internal/mfa/totp_test.go
+;;
+
+[DELTA.session-91]
+  ;; CLd.Snt4.6 | 2026-07-21:
+  add.decision d91: third-party security audit by Trail of Bits (cycle 2)
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-92]
+  ;; CLd.Ops4.6 | 2026-07-22:
+  add.decision d92: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 2)
+  relation: revert d74
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-93]
+  ;; CLd.Snt4.5 | 2026-07-23:
+  add.decision d93: backport JWT migration to v0.6.x (cycle 2)
+  add.file: internal/middleware/chain.go
+;;
+
+[DELTA.session-94]
+  ;; CLd.Ops4.7 | 2026-07-24:
+  add.decision d94: performance: middleware chain p95 800us -> 120us (cycle 2)
+  add.file: Makefile
+;;
+
+[DELTA.session-95]
+  ;; Cdx.5.4 | 2026-07-25:
+  add.decision d95: memory: session cache pool sync.Pool (cycle 2)
+  add.file: .github/workflows/security.yml
+;;
+
+[DELTA.session-96]
+  ;; Cdx.5.4-codex | 2026-07-26:
+  add.decision d96: compile flags: -trimpath, -buildvcs=false (cycle 2)
+  add.file: internal/auth/reset.go
+;;
+
+[DELTA.session-97]
+  ;; GPT.5.4 | 2026-07-27:
+  add.decision d97: supply chain: govulncheck in CI (cycle 2)
+  add.file: internal/passkey/webauthn.go
+;;
+
+[DELTA.session-98]
+  ;; Gem.2.5 | 2026-07-28:
+  add.decision d98: OWASP top 10 checklist: pass with one note (rate-limit on /reset) (cycle 2)
+  add.file: internal/passkey/registration.go
+;;
+
+[DELTA.session-99]
+  ;; Lla.4 | 2026-07-29:
+  add.decision d99: audit closed; CVE patched in v0.6.1 (cycle 2)
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-100]
+  ;; Kmi.K2 | 2026-07-30:
+  add.decision d100: ship v0.7.0 with WebAuthn passkey (cycle 2)
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-101]
+  ;; CLd.Snt4.6 | 2026-08-01:
+  add.decision d101: relocate auth from web/server.go -> internal/auth/middleware.go (cycle 3)
+  add.file: web/server.go
+;;
+
+[DELTA.session-102]
+  ;; CLd.Ops4.6 | 2026-08-02:
+  add.decision d102: rename AuthCheck -> RequireAuth (matches new convention) (cycle 3)
+  add.file: internal/auth/middleware.go
+;;
+
+[DELTA.session-103]
+  ;; CLd.Snt4.5 | 2026-08-03:
+  add.decision d103: rate-limiter NOT refactored in this scope (out-of-scope) (cycle 3)
+  add.file: internal/auth/middleware_test.go
+;;
+
+[DELTA.session-104]
+  ;; CLd.Ops4.7 | 2026-08-04:
+  add.decision d104: legacy session-cookie path PRESERVED in middleware (deferred) (cycle 3)
+  add.file: web/server_test.go
+;;
+
+[DELTA.session-105]
+  ;; Cdx.5.4 | 2026-08-05:
+  add.decision d105: investigate CI flake before merge (cycle 3)
+  add.file: internal/auth/integration_test.go
+;;
+
+[DELTA.session-106]
+  ;; Cdx.5.4-codex | 2026-08-06:
+  add.decision d106: fix flake by isolating test fixtures (cycle 3)
+  add.file: internal/ratelimit/middleware.go
+;;
+
+[DELTA.session-107]
+  ;; GPT.5.4 | 2026-08-07:
+  add.decision d107: delete legacy session-cookie path under build tag (cycle 3)
+  relation: revert d104
+  add.file: internal/ratelimit/middleware_test.go
+;;
+
+[DELTA.session-108]
+  ;; Gem.2.5 | 2026-08-08:
+  add.decision d108: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 3)
+  relation: supersede d103
+  add.file: internal/middleware/chain.go
+;;
+
+[DELTA.session-109]
+  ;; Lla.4 | 2026-08-09:
+  add.decision d109: middleware composition via Chain(...) helper (cycle 3)
+  add.file: web/server.go
+;;
+
+[DELTA.session-110]
+  ;; Kmi.K2 | 2026-08-10:
+  add.decision d110: ship as v0.4.0 (cycle 3)
+  add.file: internal/auth/middleware.go
+;;
+
+[DELTA.session-111]
+  ;; CLd.Snt4.6 | 2026-08-11:
+  add.decision d111: fix CSRF token regression in /api/login (cycle 3)
+  add.file: internal/auth/csrf.go
+;;
+
+[DELTA.session-112]
+  ;; CLd.Ops4.6 | 2026-08-12:
+  add.decision d112: expand session timeout config to per-route (cycle 3)
+  add.file: internal/auth/csrf_test.go
+;;
+
+[DELTA.session-113]
+  ;; CLd.Snt4.5 | 2026-08-13:
+  add.decision d113: add audit log for failed auth attempts (cycle 3)
+  add.file: internal/auth/audit.go
+;;
+
+[DELTA.session-114]
+  ;; CLd.Ops4.7 | 2026-08-14:
+  add.decision d114: rate-limit threshold reduced 100/min -> 60/min (cycle 3)
+  add.file: internal/auth/audit_test.go
+;;
+
+[DELTA.session-115]
+  ;; Cdx.5.4 | 2026-08-15:
+  add.decision d115: revert rate-limit threshold change (false positives) (cycle 3)
+  relation: revert d114
+  add.file: internal/ratelimit/config.go
+;;
+
+[DELTA.session-116]
+  ;; Cdx.5.4-codex | 2026-08-16:
+  add.decision d116: structured logging for auth path (zerolog) (cycle 3)
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-117]
+  ;; GPT.5.4 | 2026-08-17:
+  add.decision d117: benchmark: middleware chain hot-path latency (cycle 3)
+  add.file: internal/middleware/metrics.go
+;;
+
+[DELTA.session-118]
+  ;; Gem.2.5 | 2026-08-18:
+  add.decision d118: cache RequireAuth result for duration of request (cycle 3)
+  add.file: cmd/server/main.go
+;;
+
+[DELTA.session-119]
+  ;; Lla.4 | 2026-08-19:
+  add.decision d119: add metrics: auth_success_total, auth_failure_total (cycle 3)
+  add.file: internal/auth/csrf.go
+;;
+
+[DELTA.session-120]
+  ;; Kmi.K2 | 2026-08-20:
+  add.decision d120: post-launch bugs closed; ship v0.4.1 (cycle 3)
+  add.file: internal/auth/csrf_test.go
+;;
+
+[DELTA.session-121]
+  ;; CLd.Snt4.6 | 2026-08-21:
+  add.decision d121: add OAuth provider registry (Google, GitHub, GitLab) (cycle 3)
+  add.file: internal/oauth/registry.go
+;;
+
+[DELTA.session-122]
+  ;; CLd.Ops4.6 | 2026-08-22:
+  add.decision d122: OAuth callback under /auth/oauth/<provider>/callback (cycle 3)
+  add.file: internal/oauth/google.go
+;;
+
+[DELTA.session-123]
+  ;; CLd.Snt4.5 | 2026-08-23:
+  add.decision d123: session token: JWT signed RS256 (was: opaque random) (cycle 3)
+  add.file: internal/oauth/github.go
+;;
+
+[DELTA.session-124]
+  ;; CLd.Ops4.7 | 2026-08-24:
+  add.decision d124: revert RS256: use HS512 (operational simplicity) (cycle 3)
+  relation: revert d123
+  add.file: internal/oauth/gitlab.go
+;;
+
+[DELTA.session-125]
+  ;; Cdx.5.4 | 2026-08-25:
+  add.decision d125: OAuth state param: encrypted user-intent payload (cycle 3)
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-126]
+  ;; Cdx.5.4-codex | 2026-08-26:
+  add.decision d126: rate-limit OAuth callbacks separately (5/min/IP) (cycle 3)
+  add.file: internal/oauth/state.go
+;;
+
+[DELTA.session-127]
+  ;; GPT.5.4 | 2026-08-27:
+  add.decision d127: add provider-specific scope mapping (cycle 3)
+  add.file: internal/oauth/scope.go
+;;
+
+[DELTA.session-128]
+  ;; Gem.2.5 | 2026-08-28:
+  add.decision d128: integration tests against mock OAuth servers (cycle 3)
+  add.file: internal/oauth/integration_test.go
+;;
+
+[DELTA.session-129]
+  ;; Lla.4 | 2026-08-29:
+  add.decision d129: documentation: OAuth provider onboarding (cycle 3)
+  add.file: docs/oauth-onboarding.md
+;;
+
+[DELTA.session-130]
+  ;; Kmi.K2 | 2026-08-30:
+  add.decision d130: ship OAuth as v0.5.0 (cycle 3)
+  add.file: internal/oauth/registry.go
+;;
+
+[DELTA.session-131]
+  ;; CLd.Snt4.6 | 2026-09-01:
+  add.decision d131: MFA: TOTP via authenticator apps (RFC 6238) (cycle 3)
+  add.file: internal/mfa/totp.go
+;;
+
+[DELTA.session-132]
+  ;; CLd.Ops4.6 | 2026-09-02:
+  add.decision d132: backup codes: 10 single-use codes per user (cycle 3)
+  add.file: internal/mfa/totp_test.go
+;;
+
+[DELTA.session-133]
+  ;; CLd.Snt4.5 | 2026-09-03:
+  add.decision d133: MFA enrollment flow: scan QR, enter 6-digit code twice (cycle 3)
+  add.file: internal/mfa/backup_codes.go
+;;
+
+[DELTA.session-134]
+  ;; CLd.Ops4.7 | 2026-09-04:
+  add.decision d134: recovery flow: backup code OR support ticket (no SMS) (cycle 3)
+  add.file: internal/mfa/enrollment.go
+;;
+
+[DELTA.session-135]
+  ;; Cdx.5.4 | 2026-09-05:
+  add.decision d135: decline SMS MFA (security risk per NIST 800-63B) (cycle 3)
+  add.file: internal/mfa/policy.go
+;;
+
+[DELTA.session-136]
+  ;; Cdx.5.4-codex | 2026-09-06:
+  add.decision d136: MFA-required policy configurable per role (cycle 3)
+  add.file: internal/mfa/recovery.go
+;;
+
+[DELTA.session-137]
+  ;; GPT.5.4 | 2026-09-07:
+  add.decision d137: rate-limit MFA attempts: 5 attempts then 15-min lockout (cycle 3)
+  add.file: internal/mfa/audit.go
+;;
+
+[DELTA.session-138]
+  ;; Gem.2.5 | 2026-09-08:
+  add.decision d138: audit log MFA enable/disable events (cycle 3)
+  add.file: docs/mfa-faq.md
+;;
+
+[DELTA.session-139]
+  ;; Lla.4 | 2026-09-09:
+  add.decision d139: WebAuthn passkey support deferred to v0.7 (cycle 3)
+  add.file: internal/mfa/totp.go
+;;
+
+[DELTA.session-140]
+  ;; Kmi.K2 | 2026-09-10:
+  add.decision d140: ship MFA as v0.6.0 (cycle 3)
+  add.file: internal/mfa/totp_test.go
+;;
+
+[DELTA.session-141]
+  ;; CLd.Snt4.6 | 2026-09-11:
+  add.decision d141: third-party security audit by Trail of Bits (cycle 3)
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-142]
+  ;; CLd.Ops4.6 | 2026-09-12:
+  add.decision d142: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 3)
+  relation: revert d124
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-143]
+  ;; CLd.Snt4.5 | 2026-09-13:
+  add.decision d143: backport JWT migration to v0.6.x (cycle 3)
+  add.file: internal/middleware/chain.go
+;;
+
+[DELTA.session-144]
+  ;; CLd.Ops4.7 | 2026-09-14:
+  add.decision d144: performance: middleware chain p95 800us -> 120us (cycle 3)
+  add.file: Makefile
+;;
+
+[DELTA.session-145]
+  ;; Cdx.5.4 | 2026-09-15:
+  add.decision d145: memory: session cache pool sync.Pool (cycle 3)
+  add.file: .github/workflows/security.yml
+;;
+
+[DELTA.session-146]
+  ;; Cdx.5.4-codex | 2026-09-16:
+  add.decision d146: compile flags: -trimpath, -buildvcs=false (cycle 3)
+  add.file: internal/auth/reset.go
+;;
+
+[DELTA.session-147]
+  ;; GPT.5.4 | 2026-09-17:
+  add.decision d147: supply chain: govulncheck in CI (cycle 3)
+  add.file: internal/passkey/webauthn.go
+;;
+
+[DELTA.session-148]
+  ;; Gem.2.5 | 2026-09-18:
+  add.decision d148: OWASP top 10 checklist: pass with one note (rate-limit on /reset) (cycle 3)
+  add.file: internal/passkey/registration.go
+;;
+
+[DELTA.session-149]
+  ;; Lla.4 | 2026-09-19:
+  add.decision d149: audit closed; CVE patched in v0.6.1 (cycle 3)
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-150]
+  ;; Kmi.K2 | 2026-09-20:
+  add.decision d150: ship v0.7.0 with WebAuthn passkey (cycle 3)
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-151]
+  ;; CLd.Snt4.6 | 2026-09-21:
+  add.decision d151: relocate auth from web/server.go -> internal/auth/middleware.go (cycle 4)
+  add.file: web/server.go
+;;
+
+[DELTA.session-152]
+  ;; CLd.Ops4.6 | 2026-09-22:
+  add.decision d152: rename AuthCheck -> RequireAuth (matches new convention) (cycle 4)
+  add.file: internal/auth/middleware.go
+;;
+
+[DELTA.session-153]
+  ;; CLd.Snt4.5 | 2026-09-23:
+  add.decision d153: rate-limiter NOT refactored in this scope (out-of-scope) (cycle 4)
+  add.file: internal/auth/middleware_test.go
+;;
+
+[DELTA.session-154]
+  ;; CLd.Ops4.7 | 2026-09-24:
+  add.decision d154: legacy session-cookie path PRESERVED in middleware (deferred) (cycle 4)
+  add.file: web/server_test.go
+;;
+
+[DELTA.session-155]
+  ;; Cdx.5.4 | 2026-09-25:
+  add.decision d155: investigate CI flake before merge (cycle 4)
+  add.file: internal/auth/integration_test.go
+;;
+
+[DELTA.session-156]
+  ;; Cdx.5.4-codex | 2026-09-26:
+  add.decision d156: fix flake by isolating test fixtures (cycle 4)
+  add.file: internal/ratelimit/middleware.go
+;;
+
+[DELTA.session-157]
+  ;; GPT.5.4 | 2026-09-27:
+  add.decision d157: delete legacy session-cookie path under build tag (cycle 4)
+  relation: revert d154
+  add.file: internal/ratelimit/middleware_test.go
+;;
+
+[DELTA.session-158]
+  ;; Gem.2.5 | 2026-09-28:
+  add.decision d158: rate-limiter in NEW package internal/ratelimit, not in auth (cycle 4)
+  relation: supersede d153
+  add.file: internal/middleware/chain.go
+;;
+
+[DELTA.session-159]
+  ;; Lla.4 | 2026-09-29:
+  add.decision d159: middleware composition via Chain(...) helper (cycle 4)
+  add.file: web/server.go
+;;
+
+[DELTA.session-160]
+  ;; Kmi.K2 | 2026-09-30:
+  add.decision d160: ship as v0.4.0 (cycle 4)
+  add.file: internal/auth/middleware.go
+;;
+
+[DELTA.session-161]
+  ;; CLd.Snt4.6 | 2026-10-01:
+  add.decision d161: fix CSRF token regression in /api/login (cycle 4)
+  add.file: internal/auth/csrf.go
+;;
+
+[DELTA.session-162]
+  ;; CLd.Ops4.6 | 2026-10-02:
+  add.decision d162: expand session timeout config to per-route (cycle 4)
+  add.file: internal/auth/csrf_test.go
+;;
+
+[DELTA.session-163]
+  ;; CLd.Snt4.5 | 2026-10-03:
+  add.decision d163: add audit log for failed auth attempts (cycle 4)
+  add.file: internal/auth/audit.go
+;;
+
+[DELTA.session-164]
+  ;; CLd.Ops4.7 | 2026-10-04:
+  add.decision d164: rate-limit threshold reduced 100/min -> 60/min (cycle 4)
+  add.file: internal/auth/audit_test.go
+;;
+
+[DELTA.session-165]
+  ;; Cdx.5.4 | 2026-10-05:
+  add.decision d165: revert rate-limit threshold change (false positives) (cycle 4)
+  relation: revert d164
+  add.file: internal/ratelimit/config.go
+;;
+
+[DELTA.session-166]
+  ;; Cdx.5.4-codex | 2026-10-06:
+  add.decision d166: structured logging for auth path (zerolog) (cycle 4)
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-167]
+  ;; GPT.5.4 | 2026-10-07:
+  add.decision d167: benchmark: middleware chain hot-path latency (cycle 4)
+  add.file: internal/middleware/metrics.go
+;;
+
+[DELTA.session-168]
+  ;; Gem.2.5 | 2026-10-08:
+  add.decision d168: cache RequireAuth result for duration of request (cycle 4)
+  add.file: cmd/server/main.go
+;;
+
+[DELTA.session-169]
+  ;; Lla.4 | 2026-10-09:
+  add.decision d169: add metrics: auth_success_total, auth_failure_total (cycle 4)
+  add.file: internal/auth/csrf.go
+;;
+
+[DELTA.session-170]
+  ;; Kmi.K2 | 2026-10-10:
+  add.decision d170: post-launch bugs closed; ship v0.4.1 (cycle 4)
+  add.file: internal/auth/csrf_test.go
+;;
+
+[DELTA.session-171]
+  ;; CLd.Snt4.6 | 2026-10-11:
+  add.decision d171: add OAuth provider registry (Google, GitHub, GitLab) (cycle 4)
+  add.file: internal/oauth/registry.go
+;;
+
+[DELTA.session-172]
+  ;; CLd.Ops4.6 | 2026-10-12:
+  add.decision d172: OAuth callback under /auth/oauth/<provider>/callback (cycle 4)
+  add.file: internal/oauth/google.go
+;;
+
+[DELTA.session-173]
+  ;; CLd.Snt4.5 | 2026-10-13:
+  add.decision d173: session token: JWT signed RS256 (was: opaque random) (cycle 4)
+  add.file: internal/oauth/github.go
+;;
+
+[DELTA.session-174]
+  ;; CLd.Ops4.7 | 2026-10-14:
+  add.decision d174: revert RS256: use HS512 (operational simplicity) (cycle 4)
+  relation: revert d173
+  add.file: internal/oauth/gitlab.go
+;;
+
+[DELTA.session-175]
+  ;; Cdx.5.4 | 2026-10-15:
+  add.decision d175: OAuth state param: encrypted user-intent payload (cycle 4)
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-176]
+  ;; Cdx.5.4-codex | 2026-10-16:
+  add.decision d176: rate-limit OAuth callbacks separately (5/min/IP) (cycle 4)
+  add.file: internal/oauth/state.go
+;;
+
+[DELTA.session-177]
+  ;; GPT.5.4 | 2026-10-17:
+  add.decision d177: add provider-specific scope mapping (cycle 4)
+  add.file: internal/oauth/scope.go
+;;
+
+[DELTA.session-178]
+  ;; Gem.2.5 | 2026-10-18:
+  add.decision d178: integration tests against mock OAuth servers (cycle 4)
+  add.file: internal/oauth/integration_test.go
+;;
+
+[DELTA.session-179]
+  ;; Lla.4 | 2026-10-19:
+  add.decision d179: documentation: OAuth provider onboarding (cycle 4)
+  add.file: docs/oauth-onboarding.md
+;;
+
+[DELTA.session-180]
+  ;; Kmi.K2 | 2026-10-20:
+  add.decision d180: ship OAuth as v0.5.0 (cycle 4)
+  add.file: internal/oauth/registry.go
+;;
+
+[DELTA.session-181]
+  ;; CLd.Snt4.6 | 2026-10-21:
+  add.decision d181: MFA: TOTP via authenticator apps (RFC 6238) (cycle 4)
+  add.file: internal/mfa/totp.go
+;;
+
+[DELTA.session-182]
+  ;; CLd.Ops4.6 | 2026-10-22:
+  add.decision d182: backup codes: 10 single-use codes per user (cycle 4)
+  add.file: internal/mfa/totp_test.go
+;;
+
+[DELTA.session-183]
+  ;; CLd.Snt4.5 | 2026-10-23:
+  add.decision d183: MFA enrollment flow: scan QR, enter 6-digit code twice (cycle 4)
+  add.file: internal/mfa/backup_codes.go
+;;
+
+[DELTA.session-184]
+  ;; CLd.Ops4.7 | 2026-10-24:
+  add.decision d184: recovery flow: backup code OR support ticket (no SMS) (cycle 4)
+  add.file: internal/mfa/enrollment.go
+;;
+
+[DELTA.session-185]
+  ;; Cdx.5.4 | 2026-10-25:
+  add.decision d185: decline SMS MFA (security risk per NIST 800-63B) (cycle 4)
+  add.file: internal/mfa/policy.go
+;;
+
+[DELTA.session-186]
+  ;; Cdx.5.4-codex | 2026-10-26:
+  add.decision d186: MFA-required policy configurable per role (cycle 4)
+  add.file: internal/mfa/recovery.go
+;;
+
+[DELTA.session-187]
+  ;; GPT.5.4 | 2026-10-27:
+  add.decision d187: rate-limit MFA attempts: 5 attempts then 15-min lockout (cycle 4)
+  add.file: internal/mfa/audit.go
+;;
+
+[DELTA.session-188]
+  ;; Gem.2.5 | 2026-10-28:
+  add.decision d188: audit log MFA enable/disable events (cycle 4)
+  add.file: docs/mfa-faq.md
+;;
+
+[DELTA.session-189]
+  ;; Lla.4 | 2026-10-29:
+  add.decision d189: WebAuthn passkey support deferred to v0.7 (cycle 4)
+  add.file: internal/mfa/totp.go
+;;
+
+[DELTA.session-190]
+  ;; Kmi.K2 | 2026-10-30:
+  add.decision d190: ship MFA as v0.6.0 (cycle 4)
+  add.file: internal/mfa/totp_test.go
+;;
+
+[DELTA.session-191]
+  ;; CLd.Snt4.6 | 2026-11-01:
+  add.decision d191: third-party security audit by Trail of Bits (cycle 4)
+  add.file: internal/oauth/jwt.go
+;;
+
+[DELTA.session-192]
+  ;; CLd.Ops4.6 | 2026-11-02:
+  add.decision d192: audit findings: CVE-class issue in JWT verify (HS512 -> RS256) (cycle 4)
+  relation: revert d174
+  add.file: internal/auth/cache.go
+;;
+
+[DELTA.session-193]
+  ;; CLd.Snt4.5 | 2026-11-03:
+  add.decision d193: backport JWT migration to v0.6.x (cycle 4)
+  add.file: internal/middleware/chain.go
+;;
+
+[DELTA.session-194]
+  ;; CLd.Ops4.7 | 2026-11-04:
+  add.decision d194: performance: middleware chain p95 800us -> 120us (cycle 4)
+  add.file: Makefile
+;;
+
+[DELTA.session-195]
+  ;; Cdx.5.4 | 2026-11-05:
+  add.decision d195: memory: session cache pool sync.Pool (cycle 4)
+  add.file: .github/workflows/security.yml
+;;
+
+;;; EOF | archive
+;;; — CLd.Ops4.7 | archive.author | end-of-archive

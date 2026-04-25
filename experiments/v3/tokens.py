@@ -40,6 +40,15 @@ VARIANTS_50 = [
     ("Prose summary",                 "prose-summary-50.md"),
 ]
 
+VARIANTS_200 = [
+    ("Raw append (CLM/2.1)",          "raw-append-200.clm"),
+    ("CLM/3.0 sibling (live)",        "dreamed-sibling-200.clm"),
+    ("  + sibling archive file",      "dreamed-sibling-200.archive.clm"),
+    ("CLM/3.0 trim aggressive (live)",   "dreamed-sibling-200-trim.clm"),
+    ("  + trim archive file",         "dreamed-sibling-200-trim.archive.clm"),
+    ("Prose summary",                 "prose-summary-200.md"),
+]
+
 
 def count_tokens(text: str) -> int:
     return len(ENC.encode(text))
@@ -104,6 +113,7 @@ def deltas(rows: list[tuple[str, int, int]], depth: int) -> None:
 def main() -> None:
     rows10 = measure(VARIANTS_10)
     rows50 = measure(VARIANTS_50)
+    rows200 = measure(VARIANTS_200)
 
     print_table("10-session thread", rows10)
     deltas(rows10, 10)
@@ -111,25 +121,36 @@ def main() -> None:
     print_table("50-session thread", rows50)
     deltas(rows50, 50)
 
+    print_table("200-session thread", rows200)
+    deltas(rows200, 200)
+
     # Scaling comparison
     raw_10 = next(t for label, _, t in rows10 if label.startswith("Raw"))
     raw_50 = next(t for label, _, t in rows50 if label.startswith("Raw"))
+    raw_200 = next(t for label, _, t in rows200 if label.startswith("Raw"))
     live_10 = next(t for label, _, t in rows10 if label == "CLM/3.0 sibling (live)")
     live_50 = next(t for label, _, t in rows50 if label == "CLM/3.0 sibling (live)")
+    live_200 = next(t for label, _, t in rows200 if label == "CLM/3.0 sibling (live)")
     trim_50 = next(
         (t for label, _, t in rows50 if label == "CLM/3.0 trim aggressive (live)"), None
     )
+    trim_200 = next(
+        (t for label, _, t in rows200 if label == "CLM/3.0 trim aggressive (live)"), None
+    )
 
-    print("\n=== scaling ===")
-    print(f"  Raw append:           10 sessions = {raw_10:>5} tokens   →   50 sessions = {raw_50:>5} tokens   (×{raw_50/raw_10:.2f})")
-    print(f"  CLM/3.0 sibling-live: 10 sessions = {live_10:>5} tokens   →   50 sessions = {live_50:>5} tokens   (×{live_50/live_10:.2f})")
-    if trim_50 is not None:
-        print(f"  CLM/3.0 trim-live:                                       50 sessions = {trim_50:>5} tokens")
+    print("\n=== scaling (live-context tokens) ===")
+    print(f"  Raw append:                10 = {raw_10:>5}   |   50 = {raw_50:>5}   |   200 = {raw_200:>6}")
+    print(f"  CLM/3.0 sibling (no trim): 10 = {live_10:>5}   |   50 = {live_50:>5}   |   200 = {live_200:>6}")
+    if trim_50 is not None and trim_200 is not None:
+        print(f"  CLM/3.0 trim aggressive:                |   50 = {trim_50:>5}   |   200 = {trim_200:>6}")
     print()
-    print(f"  Raw growth ratio: ×{raw_50/raw_10:.2f}")
-    print(f"  v3.0 growth ratio: ×{live_50/live_10:.2f}")
-    if trim_50 is not None:
-        print(f"  v3.0 trim absolute @ 50: {trim_50} tokens ({(raw_50 - trim_50) / raw_50 * 100:.1f}% smaller than raw)")
+    print(f"  Raw growth ratio (10→200):        ×{raw_200/raw_10:.2f}")
+    print(f"  CLM/3.0 (no trim) ratio (10→200): ×{live_200/live_10:.2f}")
+    if trim_50 is not None and trim_200 is not None:
+        print(f"  CLM/3.0 trim ratio (50→200):      ×{trim_200/trim_50:.2f}  ← the architecture's main claim")
+    if trim_200 is not None:
+        save_pct = (raw_200 - trim_200) / raw_200 * 100
+        print(f"  v3.0 trim @ 200 vs raw @ 200:     -{save_pct:.1f}%   (live-context savings keep growing with depth)")
 
     print()
     print("Caveat: o200k_base differs from Anthropic's BPE by ~5-15% in absolute count.")
