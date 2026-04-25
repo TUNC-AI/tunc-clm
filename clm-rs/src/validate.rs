@@ -251,8 +251,8 @@ fn is_state_c(doc: &Document) -> bool {
             "ROLL.CALL" if has_sentinel(&section.body, "ROLL.CALL") => return true,
             "DREAM.LOG" if has_sentinel(&section.body, "DREAM.LOG") => return true,
             "STATE" => {
-                let (_, sentinel) = decisions_live_stats(&section.body);
-                if sentinel {
+                let stats = decisions_live_stats(&section.body);
+                if stats.sentinel_present {
                     return true;
                 }
             }
@@ -407,8 +407,8 @@ fn count_valid_entries(
             continue;
         }
         let well_formed = match section_name {
-            "ROLL.CALL" => trimmed.contains('·'),
-            "DREAM.LOG" => trimmed.contains('|'),
+            "ROLL.CALL" => well_formed_roll_call_line(trimmed),
+            "DREAM.LOG" => well_formed_dream_log_line(trimmed),
             _ => true,
         };
         if well_formed {
@@ -463,12 +463,20 @@ fn check_section_sentinels(
             }
             "STATE" => {
                 // decisions.live is an indented sub-block inside [STATE]; the spec requires
-                // a truncation sentinel before kept entries when it overflows trim.decisions_live.
-                let (entries, has_sent) = decisions_live_stats(&section.body);
-                if entries > trim.decisions_live && !has_sent {
+                // a truncation sentinel before kept entries when offload has occurred.
+                //
+                // Two ways offload is detected:
+                //   - visible entries > keep_last (the writer hasn't trimmed yet), OR
+                //   - the header `(X of Y archived)` parenthetical declares Y > X (the writer
+                //     trimmed down to keep_last and the sentinel must still be emitted to
+                //     preserve audit visibility per SPEC.clm).
+                let stats = decisions_live_stats(&section.body);
+                let visible_overflow = stats.visible_entries > trim.decisions_live;
+                let declared_offload = stats.declared_offload_count.unwrap_or(0) > 0;
+                if (visible_overflow || declared_offload) && !stats.sentinel_present {
                     errors.push(ValidationError::SentinelMissingInTrimmedSection {
                         section: "STATE.decisions.live".to_string(),
-                        entries,
+                        entries: stats.visible_entries,
                         keep: trim.decisions_live,
                     });
                 }
@@ -478,19 +486,30 @@ fn check_section_sentinels(
     }
 }
 
-/// Inspect a `[STATE]` body, find the `decisions.live:` sub-block, and return
-/// (entry_count, sentinel_present_before_kept_entries).
+#[derive(Debug, Default)]
+struct DecisionsLiveStats {
+    visible_entries: usize,
+    sentinel_present: bool,
+    /// If the header parens declare `(X of Y archived)`, the difference Y - X tells us
+    /// how many decisions have been offloaded. None if the header didn't declare it.
+    declared_offload_count: Option<usize>,
+}
+
+/// Inspect a `[STATE]` body, find the `decisions.live` sub-block, and return its stats.
 ///
 /// Per `SPEC.clm` `decisions.live.delimitation`:
 ///   - begins at a line matching `\s*decisions\.live[:( ]`
 ///   - contains entries indented deeper than the `decisions.live:` line itself
 ///   - ends at the next un-indented key OR the section close
 ///   - sentinel placement: BEFORE the kept entries (a comment naming `DECISIONS.ARCHIVE`)
-fn decisions_live_stats(state_body: &[String]) -> (usize, bool) {
+///
+/// Also parses an optional `(X of Y archived)` annotation on the header line:
+/// if Y > X, the doc declares that decisions have been offloaded — sentinel is required
+/// EVEN IF the visible entry count == keep_last (state.C with already-trimmed body).
+fn decisions_live_stats(state_body: &[String]) -> DecisionsLiveStats {
+    let mut stats = DecisionsLiveStats::default();
     let mut in_block = false;
     let mut block_indent: usize = 0;
-    let mut entries = 0usize;
-    let mut sentinel = false;
     let mut seen_entry_yet = false;
 
     for raw in state_body {
@@ -498,45 +517,56 @@ fn decisions_live_stats(state_body: &[String]) -> (usize, bool) {
         let trimmed = raw.trim_start();
 
         if !in_block {
-            // Per SPEC.clm decisions.live.delimitation: line matches `^\s*decisions\.live[:( ]`
-            // i.e. the next char after "decisions.live" is one of `:`, `(`, ` `.
             if let Some(rest) = trimmed.strip_prefix("decisions.live") {
                 let next = rest.chars().next();
                 if matches!(next, Some(':') | Some('(') | Some(' ')) {
                     in_block = true;
                     block_indent = leading;
+                    stats.declared_offload_count = parse_decisions_live_header_paren(rest);
                 }
             }
             continue;
         }
 
-        // Inside the block. Blank lines don't terminate; un-indented keys do.
         if trimmed.is_empty() {
             continue;
         }
         if leading <= block_indent {
-            // Back at or above the decisions.live key indent => block ended.
             break;
         }
 
         if trimmed.starts_with(";;") {
-            // Comment line. If it mentions DECISIONS.ARCHIVE / offloaded and appears BEFORE any
-            // entry, it's the truncation sentinel.
             if !seen_entry_yet
                 && trimmed.contains("DECISIONS.ARCHIVE")
                 && trimmed.contains("offloaded")
             {
-                sentinel = true;
+                stats.sentinel_present = true;
             }
             continue;
         }
 
-        // Non-comment, non-blank => count as one decision entry.
-        entries += 1;
+        stats.visible_entries += 1;
         seen_entry_yet = true;
     }
 
-    (entries, sentinel)
+    stats
+}
+
+/// Parse the parenthetical after `decisions.live`, if present. Returns `Some(Y - X)`
+/// when the header declares `(X of Y archived)` and Y > X; otherwise None.
+fn parse_decisions_live_header_paren(after_key: &str) -> Option<usize> {
+    let open = after_key.find('(')?;
+    let close = after_key[open..].find(')')?;
+    let inner = &after_key[open + 1..open + close];
+    // Expect: "<X> of <Y> archived"
+    let mut tokens = inner.split_whitespace();
+    let x: usize = tokens.next()?.parse().ok()?;
+    let of_kw = tokens.next()?;
+    if of_kw != "of" {
+        return None;
+    }
+    let y: usize = tokens.next()?.parse().ok()?;
+    if y > x { Some(y - x) } else { None }
 }
 
 /// Check `[DELTA.<session-id>]` section names for grammar conformance.
@@ -584,6 +614,60 @@ fn is_valid_session_id(s: &str) -> bool {
         return false;
     }
     chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_' || c == '-')
+}
+
+/// Stricter shape check for a `[ROLL.CALL]` entry line.
+///
+/// Per spec: `<Family>.<Model.Version> · <YYYY-MM-DD> · "<note>"`.
+/// Heuristic: must have at least 3 `·`-separated parts; the second part must look like
+/// an ISO date (YYYY-MM-DD); the third must contain a `"` (the note delimiter).
+fn well_formed_roll_call_line(line: &str) -> bool {
+    let parts: Vec<&str> = line.split('·').collect();
+    if parts.len() < 3 {
+        return false;
+    }
+    let date = parts[1].trim();
+    let note = parts[2..].join("·");
+    looks_like_iso_date(date) && note.contains('"')
+}
+
+/// Stricter shape check for a `[DREAM.LOG]` entry line.
+///
+/// Per spec: `<YYYY-MM-DD[ <session-tag>]?> | <Family>.<Model.Version> | <message>`.
+/// Heuristic: at least 3 `|`-separated parts; the first part starts with an ISO date.
+fn well_formed_dream_log_line(line: &str) -> bool {
+    let parts: Vec<&str> = line.split('|').collect();
+    if parts.len() < 3 {
+        return false;
+    }
+    let first = parts[0].trim();
+    // First part may be `YYYY-MM-DD` alone or `YYYY-MM-DD <session-tag>`.
+    let date_token = first.split_whitespace().next().unwrap_or("");
+    looks_like_iso_date(date_token)
+}
+
+fn looks_like_iso_date(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    if bytes.len() != 10 {
+        return false;
+    }
+    let pat = b"NNNN-NN-NN";
+    for (i, b) in bytes.iter().enumerate() {
+        match pat[i] {
+            b'N' => {
+                if !b.is_ascii_digit() {
+                    return false;
+                }
+            }
+            b'-' => {
+                if *b != b'-' {
+                    return false;
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+    true
 }
 
 #[cfg(test)]

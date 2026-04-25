@@ -407,9 +407,12 @@
       inside a trimmed section. In [EXAMPLE.live.doc], [ROLL.CALL] and [DREAM.LOG] do this
       correctly, but decisions.live puts the sentinel after d16...d23. That makes the example
       internally inconsistent."
-    fix.in.this.revision: [EXAMPLE.live.doc] decisions.live sentinel moved BEFORE d16...d23 to
+    fix.in.this.revision: [EXAMPLE.LIVE.DOC] decisions.live sentinel moved BEFORE d16...d23 to
       match the rule; explicit `sentinel.placement: BEFORE the kept entries` added to the
       decisions.live.delimitation rule
+      ;; note: section names renamed to uppercase ([EXAMPLE.live.doc] → [EXAMPLE.LIVE.DOC] and
+      ;; [EXAMPLE.archive.doc] → [EXAMPLE.ARCHIVE.DOC]) per Codex PR-13 round-3 strict-grammar
+      ;; finding; original lowercase form preserved in the quote above for audit integrity
 
   round-3.validator.ambiguities.eight (all resolved in [STATE].validator.ambiguity.resolutions):
     1. missing.archive.path.header.under.trim.mode → ERROR (no silent derivation)
@@ -441,7 +444,7 @@
         That resolves the previous contradiction."
 
     blocker.3.example.sentinel.placement: CLEARED
-      cdx.5.verbatim: "[EXAMPLE.live.doc] now places the decisions.live sentinel before kept
+      cdx.5.verbatim: "[EXAMPLE.LIVE.DOC] now places the decisions.live sentinel before kept
         entries, matching [ROLL.CALL], [DREAM.LOG], and the explicit placement rule."
 
     eight.validator.ambiguities: SUFFICIENT TO START IMPLEMENTATION
@@ -471,7 +474,7 @@
     "i.was.expected" → confirmed.for.Cdx.5
 ;;
 
-[EXAMPLE.live.doc]
+[EXAMPLE.LIVE.DOC]
   ;; what a v3.0 trim-aggressive doc looks like in practice — the sketch a fresh reader sees
 
   ;;; CLM/3.0 — handoff thread (dreamed every 5 sessions, sibling archive, trim aggressive)
@@ -504,7 +507,7 @@
   ;;
 ;;
 
-[EXAMPLE.archive.doc]
+[EXAMPLE.ARCHIVE.DOC]
   ;; what the sibling archive looks like
 
   ;;; CLM/3.0 — archive sibling

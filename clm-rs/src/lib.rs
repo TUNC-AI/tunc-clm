@@ -330,17 +330,49 @@ fn parse_section_open(line: &str) -> Option<String> {
     None
 }
 
+/// Section names follow two patterns:
+///   - Plain: `[A-Z][A-Z0-9.]*` (e.g. STATE, ROLL.CALL, DELTA.ARCHIVE, MODEL.FAMILIES)
+///   - Delta with session-id: `DELTA.<session-id>` where session-id matches
+///     `[a-z0-9][a-z0-9._-]*` (lowercase per SPEC.clm grammar)
+///
+/// Lowercase letters, `_`, and `-` are NOT allowed in plain section names — that would
+/// let `[State]` or `[ROLL_call]` slip past the parser and bypass validator name checks.
 fn validate_section_name(inner: &str) -> Option<String> {
     if inner.is_empty() {
         return None;
     }
+    // Try the DELTA.<session-id> form first.
+    if let Some(session_id) = inner.strip_prefix("DELTA.") {
+        // Allow uppercase reserved names like DELTA.ARCHIVE; otherwise enforce
+        // lowercase session-id grammar so the validator can accept/reject precisely.
+        let is_uppercase_reserved = session_id.chars().all(|c| {
+            c.is_ascii_uppercase() || c.is_ascii_digit() || c == '.' || c == '_' || c == '-'
+        });
+        let is_session_id = session_id_grammar(session_id);
+        if is_uppercase_reserved || is_session_id {
+            return Some(inner.to_string());
+        }
+        return None;
+    }
+    // Plain section name.
     let mut chars = inner.chars();
     let first = chars.next()?;
     if !first.is_ascii_uppercase() {
         return None;
     }
-    if !chars.all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-') {
+    if !chars.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '.') {
         return None;
     }
     Some(inner.to_string())
+}
+
+fn session_id_grammar(s: &str) -> bool {
+    let mut chars = s.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_lowercase() || first.is_ascii_digit()) {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '_' || c == '-')
 }
