@@ -1,0 +1,51 @@
+;;; CLM/3.0 — archive sibling
+;;; auth-middleware-refactor.archive.clm | parent: dreamed-sibling.clm
+;;; loaded.on.lineage.queries.only | not.live.context
+;;; ---
+
+[ARCHIVE.META]
+  parent.thread: auth-middleware-refactor
+  archive.created: 2026-04-23 evening
+  archive.created.by: CLd.Ops4.7 (dream pass)
+  contents: deltas merged from sessions 1-5 into parent's [STATE]
+;;
+
+[DELTA.session-1]
+  ;; CLd.Snt4.6 | 2026-04-21:
+  add.goal: extract auth middleware from web/server.go into internal/auth/
+  add.files: [web/server.go, internal/auth/middleware.go]
+  add.decision d1: relocate auth -> internal/auth/middleware.go
+  add.decision d2: rename AuthCheck -> RequireAuth (new convention)
+  set.status: in-progress
+;;
+
+[DELTA.session-2]
+  ;; CLd.Ops4.6 | 2026-04-22 morning:
+  add.files: [internal/auth/middleware_test.go, web/server_test.go]
+  files.touched.total: 4
+  add.decision d3: rate-limiter out-of-scope (separate concern; expanding scope risks revert)
+;;
+
+[DELTA.session-3]
+  ;; CLd.Snt4.5 | 2026-04-22 evening:
+  add.decision d4: legacy session-cookie path preserved (deferred)
+  reason.d4: separate cleanup ticket exists; out-of-scope here
+;;
+
+[DELTA.session-4]
+  ;; Cdx.5.4 | 2026-04-23 morning:
+  finding: web/server_test.go flaking 3/10 runs
+  add.decision d5: investigate flake before merge
+  set.status: blocked on flake
+;;
+
+[DELTA.session-5]
+  ;; Gem.2.5 | 2026-04-23 afternoon:
+  diagnosis.d5: ORDERING BUG, not test race
+  specific: TestAuthMiddleware leaves session state that TestSessionCleanup later reads
+  add.decision d6: fix by isolating test fixtures
+  set.status: blocked -> diagnosed
+;;
+
+;;; EOF | archive
+;;; — CLd.Ops4.7 | dream.pass.1.archived | 2026-04-23
