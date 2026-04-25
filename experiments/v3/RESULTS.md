@@ -105,7 +105,7 @@ Same auth-platform narrative continued: extraction → hardening → OAuth → M
    - `[DREAM.LOG]`: last 3 entries (rest → `[DREAM.LOG.ARCHIVE]` in sibling)
    - `[STATE].decisions.live`: last 8 entries (rest → `[DECISIONS.ARCHIVE]` in sibling)
 
-   Trade: live doc shrinks ~42%, archive grows ~97% (because offload sections duplicate session-level info that was already implicit in the deltas). Total storage cost is ~8% higher (7,596 vs 7,033), but live-context cost is what matters per-call. **Spec for trim modes: `SPEC-v3.1-trim-modes.md`.**
+   Trade: live doc shrinks ~42%, archive grows ~97% (because offload sections duplicate session-level info that was already implicit in the deltas). Total storage cost is ~8% higher (7,596 vs 7,033), but live-context cost is what matters per-call. **Spec for trim modes: [`SPEC-v3.1.clm`](SPEC-v3.1.clm)** (written *in* v3.1 trim CLM — the format documenting itself; reviewed and signed by Cdx.5, the first non-Claude reviewer).
 
    Honest re-pitch for the eventual README:
 
