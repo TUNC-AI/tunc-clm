@@ -180,6 +180,16 @@ Prose summary buys cheaper tokens by **destroying** properties 1, 2, and 3. CLM/
 - **Dream-pass quality is interpretive.** Different AIs running the dream pass over the same deltas may produce slightly different `[STATE]` blocks. v3.0 accepts this as a property; reviewers can re-dream.
 - **Operation vocabulary is informal here.** v3.0 spec sketch lists `add/update/remove/revert/fix/note`. A strict grammar (and a clm-rs extension to validate it) is open work.
 
+## Known limitations (clm-rs validator follow-ups, post-PR-13 round-8)
+
+After 8 rounds of Codex review on PR #13, three remaining findings were documented as follow-up rather than blocking the merge. The validator is correct for the canonical artifacts; these are completeness gaps for adversarial input shapes:
+
+1. **`DECISIONS.ARCHIVE` cross-check missing** (P2). Round-7 added cross-doc sentinel checks for `[ROLL.CALL.ARCHIVE]` and `[DREAM.LOG.ARCHIVE]` (live MUST carry sentinel if archive proves offload). The symmetric path for `[DECISIONS.ARCHIVE]` was not added. A state.C doc with bare `decisions.live:` (no `(X of Y archived)` annotation), exactly `keep_last` visible decisions, no sentinel, but with `[DECISIONS.ARCHIVE]` in sibling — passes validation. **Fix**: extend `cross_check_live_against_archive()` in `clm-rs/src/validate.rs` to handle `DECISIONS.ARCHIVE` symmetrically.
+
+2. **Malformed `decisions.live` lines aren't quarantined** (P2). `decisions_live_stats()` increments `visible_entries` for every deeper-indented non-comment line, including malformed ones (e.g. an explanatory note instead of `dN: ...`). A malformed line can push the block over `trim.config.decisions_live` and raise a false `SentinelMissingInTrimmedSection`. Spec says malformed content should be warned + quarantined — already implemented for `[ROLL.CALL]` / `[DREAM.LOG]` but not `decisions.live`. **Fix**: emit `MalformedEntry` warning + exclude from count when line doesn't match `looks_like_decision_entry()`.
+
+3. **Generator nonsense for tiny depths** (P3). `python3 gen_50_session.py 1` produces `last.dream: ... | sessions 1-0`. Affects only CLI users with depth < 5; canonical 50/200 runs unaffected. **Fix**: special-case depth ≤ `dream_every` in `render_dreamed()`.
+
 ## Recommendations
 
 1. **Don't ship inline-archive as default.** This bench falsifies it. v3.0 spec should default to sibling-archive; inline allowed only when explicitly chosen for unified-thread audit.
