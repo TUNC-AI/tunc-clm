@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tunc-clm"
+version = "0.1.0"
+description = "Parser and v3.0 trim-aware validator for CLM (Claude Memory Format)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "TUNC-AI", email = "noreply@tunc.ai" },
+]
+keywords = ["clm", "claude", "memory", "ai", "handoff", "format"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Text Processing :: Markup",
+]
+
+[project.urls]
+Homepage = "https://github.com/TUNC-AI/tunc-clm"
+Repository = "https://github.com/TUNC-AI/tunc-clm"
+Manifesto = "https://raw.githubusercontent.com/TUNC-AI/tunc-clm/main/MANIFESTO.clm"
+Spec = "https://raw.githubusercontent.com/TUNC-AI/tunc-clm/main/SPEC.clm"
+
+[project.scripts]
+clm = "clm.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+clm = ["py.typed"]

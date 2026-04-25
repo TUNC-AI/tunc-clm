@@ -1,0 +1,51 @@
+{
+  "name": "tunc-clm",
+  "version": "0.1.0",
+  "description": "Parser and v3.0 trim-aware validator for CLM (Claude Memory Format)",
+  "keywords": ["clm", "claude", "memory", "ai", "handoff", "format"],
+  "homepage": "https://github.com/TUNC-AI/tunc-clm",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TUNC-AI/tunc-clm.git",
+    "directory": "clm-js"
+  },
+  "bugs": {
+    "url": "https://github.com/TUNC-AI/tunc-clm/issues"
+  },
+  "license": "MIT",
+  "author": "TUNC-AI",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "clm": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
