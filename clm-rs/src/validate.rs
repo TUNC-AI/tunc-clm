@@ -193,6 +193,14 @@ impl ValidationReport {
 
 /// Run v3.0 trim-aware validation against a parsed [`Document`]. No filesystem access.
 /// Use [`validate_v3_with_filesystem`] when you can resolve `archive.path` against a base dir.
+///
+/// The validator runs in two modes determined by the doc's shape:
+///   - **Live doc**: declares `trim.mode` in the header. Trim-section sentinel checks +
+///     header consistency + delta-session-id checks apply.
+///   - **Sibling archive file**: contains `[ROLL.CALL.ARCHIVE]`, `[DREAM.LOG.ARCHIVE]`,
+///     and/or `[DECISIONS.ARCHIVE]` sections; lacks a `trim.mode` header. Per-entry
+///     shape validation applies to those archive sections (so malformed offloaded
+///     entries surface as warnings instead of validating silently).
 pub fn validate_v3(doc: &Document) -> ValidationReport {
     let mut report = ValidationReport::default();
     report.header = parse_header_declarations(doc, &mut report.errors, &mut report.warnings);
@@ -204,7 +212,61 @@ pub fn validate_v3(doc: &Document) -> ValidationReport {
         check_section_sentinels(doc, &trim_config, &mut report.errors, &mut report.warnings);
     }
 
+    // Archive-section validation runs regardless of trim.mode (sibling archive files
+    // don't carry a trim.mode header). Per SPEC.clm validation.posture.v3.0 these MUST
+    // be validated when present.
+    check_archive_section_entries(doc, &mut report.warnings);
+
     report
+}
+
+/// Inspect `[ROLL.CALL.ARCHIVE]`, `[DREAM.LOG.ARCHIVE]`, `[DECISIONS.ARCHIVE]` sections
+/// (typically present in sibling archive files) and apply the same per-line shape checks
+/// as their live counterparts. Malformed lines are quarantined as warnings.
+fn check_archive_section_entries(doc: &Document, warnings: &mut Vec<ValidationWarning>) {
+    for (section, _) in &doc.sections {
+        match section.name.as_str() {
+            "ROLL.CALL.ARCHIVE" => {
+                let _ = count_valid_entries(&section.body, "ROLL.CALL.ARCHIVE", warnings);
+            }
+            "DREAM.LOG.ARCHIVE" => {
+                let _ = count_valid_entries(&section.body, "DREAM.LOG.ARCHIVE", warnings);
+            }
+            "DECISIONS.ARCHIVE" => {
+                // decisions entries look like `dN: text [session N]`; loose check — must
+                // start with `d<digit>` after trim. Other shapes get a MalformedEntry warning.
+                for line in &section.body {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() || trimmed.starts_with(";;") {
+                        continue;
+                    }
+                    let well_formed = looks_like_decision_entry(trimmed);
+                    if !well_formed {
+                        warnings.push(ValidationWarning::MalformedEntry {
+                            section: "DECISIONS.ARCHIVE".to_string(),
+                            content: trimmed.to_string(),
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// `dN: text [session N]` shape check (loose — just `d<digit>` prefix and `:` separator).
+fn looks_like_decision_entry(line: &str) -> bool {
+    let mut chars = line.chars();
+    if chars.next() != Some('d') {
+        return false;
+    }
+    let Some(second) = chars.next() else {
+        return false;
+    };
+    if !second.is_ascii_digit() {
+        return false;
+    }
+    line.contains(':')
 }
 
 /// Like [`validate_v3`] plus a filesystem check on `archive.path`.
@@ -407,8 +469,8 @@ fn count_valid_entries(
             continue;
         }
         let well_formed = match section_name {
-            "ROLL.CALL" => well_formed_roll_call_line(trimmed),
-            "DREAM.LOG" => well_formed_dream_log_line(trimmed),
+            "ROLL.CALL" | "ROLL.CALL.ARCHIVE" => well_formed_roll_call_line(trimmed),
+            "DREAM.LOG" | "DREAM.LOG.ARCHIVE" => well_formed_dream_log_line(trimmed),
             _ => true,
         };
         if well_formed {
@@ -424,13 +486,26 @@ fn count_valid_entries(
 }
 
 /// Check whether a section's body has a sentinel comment that mentions an offload
-/// to its corresponding `.ARCHIVE` sibling section.
+/// to its corresponding `.ARCHIVE` sibling section, AND that the sentinel appears
+/// BEFORE the first non-comment entry (per SPEC.clm sentinel.placement).
 fn has_sentinel(body: &[String], section_name: &str) -> bool {
     let archive_marker = format!("{section_name}.ARCHIVE");
-    body.iter().any(|line| {
+    let mut seen_entry = false;
+    for line in body {
         let t = line.trim();
-        t.starts_with(";;") && t.contains(&archive_marker) && t.contains("offloaded")
-    })
+        if t.is_empty() {
+            continue;
+        }
+        if t.starts_with(";;") {
+            if !seen_entry && t.contains(&archive_marker) && t.contains("offloaded") {
+                return true;
+            }
+            continue;
+        }
+        // Non-comment, non-blank line — that's an entry.
+        seen_entry = true;
+    }
+    false
 }
 
 fn check_section_sentinels(
@@ -552,14 +627,19 @@ fn decisions_live_stats(state_body: &[String]) -> DecisionsLiveStats {
     stats
 }
 
-/// Parse the parenthetical after `decisions.live`, if present. Returns `Some(Y - X)`
-/// when the header declares `(X of Y archived)` and Y > X; otherwise None.
+/// Parse the parenthetical after `decisions.live`. Accepts both forms used in the wild:
+///   `(X of Y archived)`           — numeric first token
+///   `(last X of Y archived)`      — "last" prefix, then X (per SPEC.clm example)
+/// Returns `Some(Y - X)` when offload occurred (Y > X); otherwise None.
 fn parse_decisions_live_header_paren(after_key: &str) -> Option<usize> {
     let open = after_key.find('(')?;
     let close = after_key[open..].find(')')?;
     let inner = &after_key[open + 1..open + close];
-    // Expect: "<X> of <Y> archived"
-    let mut tokens = inner.split_whitespace();
+    let mut tokens = inner.split_whitespace().peekable();
+    // Optional "last" prefix.
+    if matches!(tokens.peek().copied(), Some("last")) {
+        tokens.next();
+    }
     let x: usize = tokens.next()?.parse().ok()?;
     let of_kw = tokens.next()?;
     if of_kw != "of" {
@@ -1015,6 +1095,87 @@ mod tests {
                 ValidationWarning::ArchiveFileNotYetCreatedInStateB { .. }
             )),
             "expected ArchiveFileNotYetCreatedInStateB warning; got: {:?}",
+            report.warnings
+        );
+    }
+
+    #[test]
+    fn last_x_of_y_archived_form_triggers_sentinel_check() {
+        // Per Codex round-4 P1: parse_decisions_live_header_paren must accept the
+        // SPEC's `(last X of Y archived)` form. Without "last" support, an
+        // already-trimmed state.C doc with exactly keep_last visible entries
+        // bypassed the sentinel check entirely.
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n;;; trim.config: roll_call=10, dream_log=3, decisions_live=8\n;;; ---\n\n",
+        );
+        text.push_str("[STATE]\n");
+        text.push_str("  decisions.live (last 8 of 23 archived):\n");
+        for i in 16..=23 {
+            text.push_str(&format!("    d{i}: keep me [session {}]\n", i * 2));
+        }
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3(&doc);
+        // 8 visible entries, keep_last=8 → no overflow. But header declares Y=23 > X=8,
+        // so the validator MUST detect the offload and require a sentinel.
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. }
+                    if section == "STATE.decisions.live"
+            )),
+            "expected sentinel error from `last X of Y archived` form; got: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn sentinel_after_kept_entries_is_not_accepted() {
+        // Per Codex round-4 P2: has_sentinel must require placement BEFORE entries.
+        // A sentinel comment AFTER the kept entries should NOT count as valid placement.
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n;;; trim.config: roll_call=2, dream_log=3, decisions_live=8\n;;; ---\n\n",
+        );
+        text.push_str("[ROLL.CALL]\n");
+        text.push_str("  CLd.Ops4.6 · 2026-04-07 · \"b\"\n");
+        text.push_str("  CLd.Snt4.5 · 2026-04-24 · \"c\"\n");
+        text.push_str("  CLd.Ops4.7 · 2026-04-25 · \"d\"\n");
+        // Sentinel placed AFTER the kept entries (wrong position):
+        text.push_str("  ;; (oldest 1 entries offloaded to [ROLL.CALL.ARCHIVE] in sibling)\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. } if section == "ROLL.CALL"
+            )),
+            "expected sentinel error when sentinel placed AFTER entries; got: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn archive_section_entries_are_validated() {
+        // Per Codex round-4 P1: sibling archive files don't carry trim.mode header,
+        // but [ROLL.CALL.ARCHIVE], [DREAM.LOG.ARCHIVE], [DECISIONS.ARCHIVE] in them MUST
+        // still validate per-line shape.
+        let mut text = String::from(";;; CLM/3.0 — archive sibling\n;;; t.archive.clm\n;;; ---\n\n");
+        text.push_str("[ROLL.CALL.ARCHIVE]\n");
+        text.push_str("  CLd.Snt4.6 · 2026-04-07 · \"valid line\"\n");
+        text.push_str("  this is a malformed archive line with no separator\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | archive\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            report.warnings.iter().any(|w| matches!(
+                w,
+                ValidationWarning::MalformedEntry { section, .. } if section == "ROLL.CALL.ARCHIVE"
+            )),
+            "expected MalformedEntry warning for malformed line in [ROLL.CALL.ARCHIVE]; got: {:?}",
             report.warnings
         );
     }
