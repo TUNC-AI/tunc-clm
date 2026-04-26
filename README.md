@@ -30,7 +30,7 @@ CLM/3.0 has **four axes**. We've benchmarked each. The honest results:
 
 If you give a fresh AI a CLM doc and ask 11 lineage questions, lineage-preserving prose at 2,707 tokens scores 11/11 vs CLM/3.0-trim at 36,673 tokens scoring 10/11. **Don't pick CLM for one-shot retrieval.** Bench: [`experiments/fidelity/RESULTS-fidelity-v3.md`](experiments/fidelity/RESULTS-fidelity-v3.md), run by [@copyleftdev](https://github.com/copyleftdev) in [#15](https://github.com/TUNC-AI/tunc-clm/pull/15).
 
-### Axis 2 — Write cost (tokens to update across many appended sessions) — **CLM wins by 1.5×–17.4×**
+### Axis 2 — Write cost (tokens to update across many appended sessions) — **CLM wins by 1.2×–12.2×**
 
 Each session that adds to the thread:
 - **CLM**: appends one `[DELTA.session-N]` block (~60 tokens) + `[ROLL.CALL]` line (~50). Dream passes at sessions 5, 10, 15, ... rewrite bounded `[STATE]` (~210 under `trim.aggressive`) and append a `[DREAM.LOG]` entry. **Amortized ~176 tokens per session, constant in thread depth.**
@@ -40,13 +40,13 @@ Cumulative cost over a thread:
 
 | thread depth | CLM cumulative | prose cumulative | ratio |
 |---:|---:|---:|---:|
-| 10 sessions | 1,316 | 2,016 | 1.5× |
-| 50 sessions | 8,364 | 29,882 | 3.6× |
-| **100 sessions** | **17,174** | **97,179** | **5.7×** |
-| 200 sessions | 34,794 | 317,326 | 9.1× |
-| 500 sessions | 87,654 | 1,521,199 | **17.4×** |
+| 10 sessions | 1,617 | 2,016 | 1.2× |
+| 50 sessions | 11,129 | 29,882 | 2.7× |
+| **100 sessions** | **23,154** | **97,179** | **4.2×** |
+| 200 sessions | 47,654 | 317,326 | 6.7× |
+| 500 sessions | 124,754 | 1,521,199 | **12.2×** |
 
-Constant-per-update vs sub-linear-per-update; cumulatively, linear vs N^1.7133. **This is the axis the architecture was designed to win.** Bench: [`experiments/v3/RESULTS-compounding-cost.md`](experiments/v3/RESULTS-compounding-cost.md), reproducible offline (no API needed).
+Constant-ish per update vs sub-linear-per-update; cumulatively, near-linear vs N^1.7133. **This is the axis the architecture was designed to win.** Bench: [`experiments/v3/RESULTS-compounding-cost.md`](experiments/v3/RESULTS-compounding-cost.md), reproducible offline (no API needed). Includes sibling-archive write costs and `decisions.reverted/superseded` state growth per Codex PR-16 round-4 review.
 
 ### Axis 3 — Audit integrity (verbatim preservation, ritual, signed deltas) — **architecturally unique to CLM**
 

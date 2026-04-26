@@ -78,8 +78,13 @@ def sample_dream_log_entry() -> str:
 def sample_state_keys_under_trim() -> str:
     """Under trim.mode aggressive with decisions_live=8, the [STATE].decisions.live
     sub-block holds at most 8 decision lines. The rest of [STATE] is keys (project,
-    status, shipped.versions, decisions.reverted/superseded). This is a realistic
-    bounded state for a deep thread under aggressive trim."""
+    status, shipped.versions, decisions.reverted/superseded).
+
+    Note (per Codex PR-16 round-4 P2): trim.mode aggressive does NOT trim
+    decisions.reverted or decisions.superseded — those grow with thread depth.
+    This sample is a realistic mid-depth (~200 sessions) snapshot. For deeper
+    threads, [STATE] grows with the reverted/superseded lists. We model this
+    growth in `dream_pass_cost_at_depth()` below."""
     return (
         "[STATE]\n"
         "  ;; consolidated by CLd.Ops4.7 during dream pass over sessions 1-195\n"
@@ -127,12 +132,33 @@ def prose_summary_size(n_sessions: int) -> int:
 
 # ---- main ----
 
+def dream_pass_cost_at_depth(n_at_dream: int, base_state: int, dream_log: int, roll_call: int, delta: int) -> int:
+    """Dream-pass output cost at a specific depth. Includes:
+      - Rewriting [STATE] (base + decisions.reverted/superseded growth)
+      - One [DREAM.LOG] entry (~30 tokens)
+      - One [ROLL.CALL] line for dream signing (~50 tokens)
+      - Sibling archive writes: 5 merged deltas relocated to <basename>.archive.clm
+        (per Codex PR-16 round-4 P1: archive writes were missing from v0.2)
+
+    State growth (per Codex PR-16 round-4 P2): decisions.reverted/superseded
+    accumulate ~5 entries per 50 sessions in the canonical generator, ~3 tokens
+    each. Linear in depth: ~0.3 × N tokens of growth.
+    """
+    state_growth = int(0.3 * n_at_dream)
+    state_at_depth = base_state + state_growth
+    archive_write = 5 * delta  # 5 deltas merged → relocated to sibling archive
+    return state_at_depth + dream_log + roll_call + archive_write
+
+
 def main() -> None:
     delta_tokens = count_tokens(sample_clm_delta())
     roll_call_tokens = count_tokens(sample_roll_call_line())
     state_tokens = count_tokens(sample_state_keys_under_trim())
     dream_log_tokens = count_tokens(sample_dream_log_entry())
-    dream_pass_output = state_tokens + dream_log_tokens + roll_call_tokens
+
+    # Per-dream cost depends on depth; we sample at a few points for the table.
+    def dream_cost(n: int) -> int:
+        return dream_pass_cost_at_depth(n, state_tokens, dream_log_tokens, roll_call_tokens, delta_tokens)
 
     print("=" * 78)
     print("COMPOUNDING-COST BENCH — tokens spent per session UPDATE")
@@ -140,28 +166,28 @@ def main() -> None:
     print()
     print("Each session that adds to a thread, the AI must produce the new doc state.")
     print("CLM appends a delta + roll-call line; every 5th session also runs a dream")
-    print("pass (rewrite [STATE] under trim, append [DREAM.LOG] entry).")
+    print("pass (rewrite [STATE] + DREAM.LOG entry + sibling archive writes).")
     print("Prose-with-good-prompt re-summarizes the entire prior thread each time.")
     print()
     print("(o200k_base tokenizer; ~5-15% off Anthropic's BPE; relative ordering")
     print(" reliable. Prose model power-law-calibrated to PR #15's two empirical")
     print(" points: N=50→1,007 and N=200→2,707, fit gives 61.82 × N^0.7133.)")
     print()
-    print(f"  Sampled CLM delta block:      {delta_tokens:>4} tokens")
-    print(f"  Sampled [ROLL.CALL] line:     {roll_call_tokens:>4} tokens")
-    print(f"  Sampled [STATE] under trim:   {state_tokens:>4} tokens (bounded by decisions_live=8)")
-    print(f"  Sampled [DREAM.LOG] entry:    {dream_log_tokens:>4} tokens")
-    print(f"  -> dream pass output:         {dream_pass_output:>4} tokens (rewrite [STATE] + new DREAM.LOG + dream-signing roll-call line)")
+    print(f"  Sampled CLM delta block:        {delta_tokens:>4} tokens")
+    print(f"  Sampled [ROLL.CALL] line:       {roll_call_tokens:>4} tokens")
+    print(f"  Sampled [STATE] base (~200 sessions):  {state_tokens:>4} tokens (decisions.reverted/superseded grow with depth)")
+    print(f"  Sampled [DREAM.LOG] entry:      {dream_log_tokens:>4} tokens")
+    print(f"  Sibling archive writes/dream:   {5 * delta_tokens:>4} tokens (5 merged deltas relocated)")
+    print()
+    print(f"  Dream-pass cost at N=10:        {dream_cost(10):>4} tokens")
+    print(f"  Dream-pass cost at N=200:       {dream_cost(200):>4} tokens")
+    print(f"  Dream-pass cost at N=500:       {dream_cost(500):>4} tokens")
     print()
 
-    # CLM per-session amortized cost in the steady state: every session pays
-    # delta + roll-call; ~1-in-5 sessions additionally pay the dream-pass output.
-    # (Exact dream cadence handled in clm_cumulative below for finite-depth totals.)
-    per_session_basic = delta_tokens + roll_call_tokens  # delta + roll-call line
-    clm_per_session_steady = per_session_basic + (dream_pass_output / 5.0)
+    per_session_basic = delta_tokens + roll_call_tokens
 
-    print(f"  CLM per-session steady-state amortized:  {clm_per_session_steady:>6.1f} tokens")
-    print(f"     = {delta_tokens} (delta) + {roll_call_tokens} (roll-call) + {dream_pass_output}/5 (amortized dream)")
+    print(f"  CLM per-session basic:          {per_session_basic:>4} tokens (delta + roll-call)")
+    print(f"  Plus dream cost amortized over 5 sessions, growing with depth.")
     print()
 
     print("=" * 78)
@@ -172,9 +198,10 @@ def main() -> None:
     print("-" * 55)
 
     for n in [1, 5, 10, 25, 50, 100, 200, 500]:
+        clm_amortized = per_session_basic + (dream_cost(n) / 5.0)
         prose = prose_summary_size(n)
-        ratio = prose / clm_per_session_steady
-        print(f"{n:>10}  {clm_per_session_steady:>11.1f}  {prose:>15}  {ratio:>9.1f}x")
+        ratio = prose / clm_amortized
+        print(f"{n:>10}  {clm_amortized:>11.1f}  {prose:>15}  {ratio:>9.1f}x")
 
     print()
     print("=" * 78)
@@ -194,7 +221,9 @@ def main() -> None:
 
     for n in [10, 50, 100, 200, 500]:
         n_dreams = (n - 1) // 5  # matches gen_50_session.py cadence
-        clm_cum = n * per_session_basic + n_dreams * dream_pass_output
+        # Each dream's cost depends on the depth at which it happens.
+        dream_cum = sum(dream_cost(d) for d in range(5, n_dreams * 5 + 1, 5))
+        clm_cum = n * per_session_basic + dream_cum
         prose_cum = sum(prose_summary_size(i) for i in range(1, n + 1))
         ratio = prose_cum / clm_cum
         print(f"{n:>13}  {n_dreams:>9}  {clm_cum:>16}  {prose_cum:>18}  {ratio:>9.1f}x")

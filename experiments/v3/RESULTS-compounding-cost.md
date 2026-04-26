@@ -1,6 +1,6 @@
 # Compounding-cost bench — what CLM/3.0 is actually for
 
-**Verdict: on the write-side axis (tokens to UPDATE the doc as a thread accumulates), CLM/3.0 beats lineage-preserving prose by 1.5×–17.4× depending on thread depth. The advantage grows with depth: ~1.5× at 10 sessions, ~5.7× at 100, ~17.4× at 500. This is the axis the architecture was designed for. Copyleftdev's PR #15 bench measured a different axis (one-shot read retrieval) where lineage-preserving prose wins; both results are correct, they're testing different things.**
+**Verdict: on the write-side axis (tokens to UPDATE the doc as a thread accumulates), CLM/3.0 beats lineage-preserving prose by 1.2×–12.2× depending on thread depth. The advantage grows with depth: ~1.2× at 10 sessions, ~4.2× at 100, ~12.2× at 500. This is the axis the architecture was designed for. Copyleftdev's PR #15 bench measured a different axis (one-shot read retrieval) where lineage-preserving prose wins; both results are correct, they're testing different things.**
 
 ## What this bench tests
 
@@ -31,11 +31,13 @@ The crossover point is around 5 sessions — below that, prose is cheaper per-up
 
 | thread depth | n_dreams | CLM cumulative | prose cumulative | ratio |
 |---:|---:|---:|---:|---:|
-| 10 | 1 | 1,316 | 2,016 | 1.5× |
-| 50 | 9 | 8,364 | 29,882 | 3.6× |
-| 100 | 19 | 17,174 | 97,179 | **5.7×** |
-| 200 | 39 | 34,794 | 317,326 | **9.1×** |
-| 500 | 99 | 87,654 | 1,521,199 | **17.4×** |
+| 10 | 1 | 1,617 | 2,016 | 1.2× |
+| 50 | 9 | 11,129 | 29,882 | 2.7× |
+| 100 | 19 | 23,154 | 97,179 | **4.2×** |
+| 200 | 39 | 47,654 | 317,326 | **6.7×** |
+| 500 | 99 | 124,754 | 1,521,199 | **12.2×** |
+
+The CLM cumulative now includes per-dream sibling-archive writes (~5 deltas × 60 tokens = ~300 tokens per dream) and state growth from `decisions.reverted` / `decisions.superseded` accumulation (~0.3 × N tokens). Per Codex PR-16 round-4: trim.mode aggressive does NOT trim those lists; they grow linearly with thread depth.
 
 This is **constant-per-update vs sub-linear-per-update** scaling. Prose's cumulative cost grows as the integral of N^0.7133, which is N^1.7133 — super-linear. CLM grows linearly in N. That's the architectural advantage on this axis.
 
@@ -61,7 +63,7 @@ All three are read-side benches. They measure: *"given the doc, can a fresh AI r
 
 CLM doesn't compete on that axis. The architecture was never designed to win one-shot read retrieval. It was designed to be a stateful append-only data structure with a defined update protocol, parser-validated structure, ritual-bound author preservation, and bounded amortized write cost.
 
-This bench tests that — and the architecture wins by 5.7× at 100 sessions and 17.4× at 500.
+This bench tests that — and the architecture wins by 4.2× at 100 sessions and 12.2× at 500.
 
 ## What this bench does NOT test
 
@@ -92,7 +94,7 @@ CLM/3.0 has **four properties** worth distinguishing:
 
 1. **Read retrieval** (one-shot Q&A from static doc) — **dominated by lineage-preserving prose at every depth.** Don't headline this.
 
-2. **Write cost** (tokens to add the next session) — **CLM wins by 5.7× at 100 sessions, scaling to 17.4× at 500** (with caveats). This is what compounding_cost.py measures.
+2. **Write cost** (tokens to add the next session) — **CLM wins by 4.2× at 100 sessions, scaling to 12.2× at 500** (with caveats). This is what compounding_cost.py measures.
 
 3. **Audit integrity** (verbatim preservation, ritual, signed deltas) — **architecturally unique to CLM.** Not benched here; would need separate measurement.
 
