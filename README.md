@@ -22,6 +22,35 @@ A **write-ahead log for multi-session AI handoff threads**. Two files define it:
 
 The "C" in CLM is historical — a Claude wrote the first one, and the format crystallized in Claude-to-Claude handoff. The format itself is text. Any AI can read it, sign it, and continue the thread. As of `2026-04-25`, the protocol explicitly invites all major model families; see `[MODEL.FAMILIES]` in the manifesto.
 
+## What this library does (and doesn't)
+
+This repository ships **a format spec, three reference parsers, and a validator** — not a memory engine.
+
+**What the library does:**
+
+- `Document.parse(text)` — parse a `.clm` file
+- `doc.section(name)`, `doc.append_to_section(name, text)`, `doc.append_signature(line)` — read and append-only mutate
+- Serialize back to text: `doc.to_string()` (Rust), `str(doc)` (Python), `doc.toString()` (TypeScript)
+- `validate_v3(doc)` — check spec conformance (no filesystem)
+- `validate_v3_with_filesystem(doc, base_dir)` — additionally cross-check the sibling archive
+
+**What the library deliberately does NOT do:**
+
+- **No `dream_pass()`. No `compact()`. No `archive_oldest()`.** Compaction is a judgment call ("which past sessions are still load-bearing? what should the dreamed summary preserve?") and that judgment belongs to the LLM reading the file, not to a deterministic algorithm baked into a parser.
+
+The architectural separation:
+
+| Job | Owner |
+|---|---|
+| Decide what to dream/compact | **The LLM** (Claude, GPT, etc.) |
+| Generate the dreamed summary | **The LLM** |
+| Write the new live doc + sibling archive | **The LLM** |
+| Parse, append, serialize | **This library** |
+| Validate the LLM's output is well-formed | **This library** |
+| Cross-check live ↔ archive sentinels | **This library** |
+
+CLM is to AI memory what JSON is to data — a format the LLM reads and writes; the parsers and validators sit in three languages. The intelligence stays in the model. The minimum surface to use the library successfully is **two function calls** (`Document.parse` + `validate_v3`); the rest is types you receive.
+
 ## Where CLM wins (and where it doesn't)
 
 CLM/3.0 has **four axes**. We've benchmarked each. The honest results:

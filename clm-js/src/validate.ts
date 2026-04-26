@@ -406,6 +406,16 @@ function checkSectionSentinels(
       }
     } else if (name === "STATE") {
       const stats = decisionsLiveStats(section.body);
+      // Surface any malformed (quarantined) lines as warnings — same shape as
+      // the [ROLL.CALL] / [DREAM.LOG] handling. Already excluded from
+      // `visibleEntries` per spec.
+      for (const content of stats.malformed) {
+        warnings.push({
+          kind: "malformed_entry",
+          message: `[STATE.decisions.live] entry does not match expected shape: ${JSON.stringify(content)} (quarantined; not counted for trim)`,
+          details: { section: "STATE.decisions.live", content },
+        });
+      }
       const visibleOverflow = stats.visibleEntries > trim.decisions_live;
       const declaredOffload = (stats.declaredOffloadCount ?? 0) > 0;
       if ((visibleOverflow || declaredOffload) && !stats.sentinelPresent) {
@@ -460,6 +470,29 @@ function crossCheckLiveAgainstArchive(
     if (body && !hasSentinel(body, "DREAM.LOG")) {
       const entries = body.filter((l) => l.trim() && !l.trim().startsWith(";;")).length;
       errors.push(sentinelMissing("DREAM.LOG", entries, 0));
+    }
+  }
+
+  // DECISIONS.ARCHIVE: symmetric to ROLL.CALL.ARCHIVE / DREAM.LOG.ARCHIVE.
+  // The intra-doc check in `checkSectionSentinels` only fires on
+  // `visibleOverflow || declaredOffload`, so a state.C doc with bare
+  // `decisions.live:` (no `(X of Y archived)`), exactly keep_last visible
+  // decisions, and no sentinel — but with a populated sibling
+  // [DECISIONS.ARCHIVE] proving offload — would otherwise pass. The archive's
+  // existence is stronger evidence than the header parens.
+  // (Codex PR-13 round-8 P2-A; resolved in 0.2.1.)
+  if (archiveNames.has("DECISIONS.ARCHIVE")) {
+    const stateBody = liveBody("STATE");
+    if (stateBody) {
+      const stats = decisionsLiveStats(stateBody);
+      // Guard: only fire if a decisions.live: sub-block actually exists in the
+      // live doc. Otherwise (e.g. a [STATE] that only carries progress: /
+      // next_steps:, or no [STATE] at all), we'd emit a ghost sentinel-missing
+      // error against a section that isn't there — a real false positive
+      // caught in code review.
+      if (stats.blockFound && !stats.sentinelPresent) {
+        errors.push(sentinelMissing("STATE.decisions.live", stats.visibleEntries, 0));
+      }
     }
   }
 }
@@ -522,9 +555,14 @@ function hasSentinel(body: string[], sectionName: string): boolean {
 }
 
 function sentinelMissing(section: string, entries: number, keep: number): ValidationError {
+  // The sub-block `STATE.decisions.live` archives to `[DECISIONS.ARCHIVE]`,
+  // not `[STATE.decisions.live.ARCHIVE]`. Naive `${section}.ARCHIVE` produced
+  // the wrong example in the hint. Caught in code review.
+  const archiveMarker =
+    section === "STATE.decisions.live" ? "DECISIONS.ARCHIVE" : `${section}.ARCHIVE`;
   return {
     kind: "sentinel_missing_in_trimmed_section",
-    message: `section [${section}] has ${entries} entries (keep_last = ${keep}); truncation sentinel is required before kept entries (e.g. \`;; (oldest N entries offloaded to [${section}.ARCHIVE] in sibling)\`)`,
+    message: `section [${section}] has ${entries} entries (keep_last = ${keep}); truncation sentinel is required before kept entries (e.g. \`;; (oldest N entries offloaded to [${archiveMarker}] in sibling)\`)`,
     details: { section, entries, keep },
   };
 }
@@ -533,12 +571,31 @@ interface DecisionsLiveStats {
   visibleEntries: number;
   sentinelPresent: boolean;
   declaredOffloadCount?: number;
+  /**
+   * Lines in the decisions.live block that don't match the `dN: ...` shape.
+   * Per SPEC.clm `malformed.entry.behavior`: QUARANTINE + WARNING — they are
+   * excluded from `visibleEntries` so a single broken line cannot push the
+   * block over `trim.config.decisions_live` and trigger a false sentinel-missing
+   * error. Callers (specifically `checkSectionSentinels`) emit MalformedEntry
+   * warnings for each.
+   */
+  malformed: string[];
+  /**
+   * Whether a `decisions.live:` header was found in the [STATE] body. Used by
+   * the P2-A cross-doc check to avoid emitting a false sentinel-missing error
+   * against a sub-block that doesn't exist (e.g. a [STATE] that only carries
+   * `progress:` / `next_steps:` but whose sibling archive contains a stale
+   * `[DECISIONS.ARCHIVE]` from a prior phase).
+   */
+  blockFound: boolean;
 }
 
 function decisionsLiveStats(stateBody: string[]): DecisionsLiveStats {
   const stats: DecisionsLiveStats = {
     visibleEntries: 0,
     sentinelPresent: false,
+    malformed: [],
+    blockFound: false,
   };
   let inBlock = false;
   let blockIndent = 0;
@@ -554,6 +611,7 @@ function decisionsLiveStats(stateBody: string[]): DecisionsLiveStats {
         if (next === ":" || next === "(" || next === " ") {
           inBlock = true;
           blockIndent = leading;
+          stats.blockFound = true;
           stats.declaredOffloadCount =
             parseDecisionsLiveHeaderParen(trimmed.slice("decisions.live".length)) ?? undefined;
         }
@@ -571,6 +629,21 @@ function decisionsLiveStats(stateBody: string[]): DecisionsLiveStats {
       continue;
     }
 
+    // Quarantine malformed lines (anything not `dN: ...`). Per spec they are
+    // preserved verbatim, surfaced as warnings, and excluded from the count
+    // so a single broken line cannot push the block over the keep_last
+    // threshold. (Codex PR-13 round-8 P2-B; resolved in 0.2.1.)
+    if (!looksLikeDecisionEntry(trimmed)) {
+      stats.malformed.push(trimmed);
+      continue;
+    }
+
+    // Note the deliberate asymmetry with `hasSentinel`: there, ANY non-comment
+    // non-blank line terminates the "before-entries" zone. Here, only
+    // WELL-FORMED entries do. Spec rationale: the sentinel requirement is
+    // `BEFORE the kept entries`, and quarantined malformed lines are not "kept
+    // entries." So a sentinel placed after a quarantined line but before any
+    // well-formed entry is still valid.
     stats.visibleEntries++;
     seenEntry = true;
   }

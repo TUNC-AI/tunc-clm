@@ -119,12 +119,22 @@ impl fmt::Display for ValidationError {
             InvalidTrimConfigValue { key, raw } => {
                 write!(f, "trim.config[{key:?}] = {raw:?} is not a non-negative integer")
             }
-            SentinelMissingInTrimmedSection { section, entries, keep } => write!(
-                f,
-                "section [{section}] has {entries} entries (keep_last = {keep}); \
-                 truncation sentinel is required before kept entries (\
-                 e.g. `;; (oldest N entries offloaded to [{section}.ARCHIVE] in sibling)`)"
-            ),
+            SentinelMissingInTrimmedSection { section, entries, keep } => {
+                // The sub-block `STATE.decisions.live` archives to `[DECISIONS.ARCHIVE]`,
+                // not `[STATE.decisions.live.ARCHIVE]`. Naive `{section}.ARCHIVE`
+                // formatting produced the wrong example. Caught in code review.
+                let archive_marker = if section == "STATE.decisions.live" {
+                    "DECISIONS.ARCHIVE".to_string()
+                } else {
+                    format!("{section}.ARCHIVE")
+                };
+                write!(
+                    f,
+                    "section [{section}] has {entries} entries (keep_last = {keep}); \
+                     truncation sentinel is required before kept entries (\
+                     e.g. `;; (oldest N entries offloaded to [{archive_marker}] in sibling)`)"
+                )
+            }
             UnknownTrimMode { raw } => write!(f, "unknown trim.mode value: {raw:?} (expected: none, aggressive)"),
             UnknownArchiveMode { raw } => write!(f, "unknown archive.mode value: {raw:?} (expected: sibling, inline)"),
             InvalidDeltaSessionId { section_name, session_id } => write!(
@@ -421,9 +431,33 @@ fn cross_check_live_against_archive(
         }
     }
 
-    // DECISIONS.ARCHIVE is checked via the existing decisions.live header `(X of Y archived)`
-    // detection in validate_v3; the archive's presence is a stronger signal but the
-    // existing path already errors on missing sentinel + declared offload.
+    // DECISIONS.ARCHIVE: symmetric to ROLL.CALL.ARCHIVE / DREAM.LOG.ARCHIVE above.
+    //
+    // The intra-doc check in `check_section_sentinels` only fires on
+    //   `visible_overflow || declared_offload`
+    // so a state.C doc with bare `decisions.live:` (no `(X of Y archived)`),
+    // exactly keep_last visible decisions, and no sentinel — but with a populated
+    // sibling [DECISIONS.ARCHIVE] proving offload — would otherwise pass.
+    // The archive's existence is stronger evidence than the header parens, so we
+    // demand the sentinel here even when the intra-doc check stayed silent.
+    // (Codex PR-13 round-8 P2 follow-up; resolved in 0.2.1.)
+    if archive_has("DECISIONS.ARCHIVE") {
+        if let Some(body) = live_section_body("STATE") {
+            let stats = decisions_live_stats(body);
+            // Guard: only fire if a decisions.live: sub-block actually exists in the
+            // live doc. Otherwise (e.g. a [STATE] that only carries progress: /
+            // next_steps:, or no [STATE] sub-block at all), we'd emit a ghost
+            // SentinelMissingInTrimmedSection against a section that isn't there —
+            // a real false positive caught in code review.
+            if stats.block_found && !stats.sentinel_present {
+                errors.push(ValidationError::SentinelMissingInTrimmedSection {
+                    section: "STATE.decisions.live".to_string(),
+                    entries: stats.visible_entries,
+                    keep: 0, // 0 conveys "any count, archive proves offload"
+                });
+            }
+        }
+    }
 }
 
 /// State.C is "post-first-trim-offload" — i.e., at least one trimmed section contains
@@ -672,6 +706,15 @@ fn check_section_sentinels(
                 //     trimmed down to keep_last and the sentinel must still be emitted to
                 //     preserve audit visibility per SPEC.clm).
                 let stats = decisions_live_stats(&section.body);
+                // Surface any malformed (quarantined) lines as warnings — same
+                // shape as the [ROLL.CALL] / [DREAM.LOG] handling. They are
+                // already excluded from `visible_entries` per spec.
+                for content in &stats.malformed {
+                    warnings.push(ValidationWarning::MalformedEntry {
+                        section: "STATE.decisions.live".to_string(),
+                        content: content.clone(),
+                    });
+                }
                 let visible_overflow = stats.visible_entries > trim.decisions_live;
                 let declared_offload = stats.declared_offload_count.unwrap_or(0) > 0;
                 if (visible_overflow || declared_offload) && !stats.sentinel_present {
@@ -694,6 +737,19 @@ struct DecisionsLiveStats {
     /// If the header parens declare `(X of Y archived)`, the difference Y - X tells us
     /// how many decisions have been offloaded. None if the header didn't declare it.
     declared_offload_count: Option<usize>,
+    /// Lines in the decisions.live block that don't match the `dN: ...` shape.
+    /// Per `SPEC.clm` `malformed.entry.behavior`: QUARANTINE + WARNING — they are
+    /// excluded from `visible_entries` so a single broken line cannot push the block
+    /// over `trim.config.decisions_live` and trigger a false sentinel-missing error.
+    /// Callers (specifically `check_section_sentinels`) emit `MalformedEntry` warnings
+    /// for each.
+    malformed: Vec<String>,
+    /// Whether a `decisions.live:` header was found in the [STATE] body. Used by the
+    /// P2-A cross-doc check to avoid emitting a false `SentinelMissingInTrimmedSection`
+    /// against a sub-block that doesn't exist (e.g. a doc whose [STATE] only carries
+    /// `progress:` / `next_steps:` but whose sibling archive contains a stale
+    /// `[DECISIONS.ARCHIVE]` from a prior phase).
+    block_found: bool,
 }
 
 /// Inspect a `[STATE]` body, find the `decisions.live` sub-block, and return its stats.
@@ -723,6 +779,7 @@ fn decisions_live_stats(state_body: &[String]) -> DecisionsLiveStats {
                 if matches!(next, Some(':') | Some('(') | Some(' ')) {
                     in_block = true;
                     block_indent = leading;
+                    stats.block_found = true;
                     stats.declared_offload_count = parse_decisions_live_header_paren(rest);
                 }
             }
@@ -753,6 +810,21 @@ fn decisions_live_stats(state_body: &[String]) -> DecisionsLiveStats {
             continue;
         }
 
+        // Quarantine malformed lines (anything not `dN: ...`). Per spec they are
+        // preserved verbatim, surfaced as warnings, and excluded from the count
+        // so a single broken line cannot push the block over the keep_last
+        // threshold. (Codex PR-13 round-8 P2 follow-up; resolved in 0.2.1.)
+        if !looks_like_decision_entry(trimmed) {
+            stats.malformed.push(trimmed.to_string());
+            continue;
+        }
+
+        // Note the deliberate asymmetry with `has_sentinel`: there, ANY
+        // non-comment non-blank line terminates the "before-entries" zone.
+        // Here, only WELL-FORMED entries do. Spec rationale: the sentinel
+        // requirement is `BEFORE the kept entries`, and quarantined malformed
+        // lines are not "kept entries." So a sentinel placed after a
+        // quarantined line but before any well-formed entry is still valid.
         stats.visible_entries += 1;
         seen_entry_yet = true;
     }
@@ -1514,6 +1586,130 @@ mod tests {
             )),
             "expected ArchiveFileMissingInStateC error; got: {:?}",
             report.errors
+        );
+    }
+
+    #[test]
+    fn decisions_live_archive_cross_check_demands_sentinel() {
+        // Codex PR-13 round-8 P2-A regression. Symmetric to
+        // `live_section_without_sentinel_errors_when_archive_exists` but for
+        // [DECISIONS.ARCHIVE]. Live doc has bare `decisions.live:` (no parens),
+        // exactly keep_last visible decisions, no sentinel — but the sibling
+        // archive contains [DECISIONS.ARCHIVE] proving offload happened. The
+        // intra-doc check stays silent (no overflow, no declared offload), so
+        // before the fix this validated clean. Now the cross-doc check demands
+        // the sentinel.
+        let tmp_dir = std::env::temp_dir();
+        let archive_path = tmp_dir.join("clm-test-decisions-archive.archive.clm");
+        let archive_text = ";;; CLM/3.0 — archive\n;;; ---\n\n[DECISIONS.ARCHIVE]\n  d1: original decision [session 1]\n  d2: another decision [session 2]\n;;\n\n;;; EOF | archive\n";
+        std::fs::write(&archive_path, archive_text).unwrap();
+
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | ",
+        );
+        text.push_str(&format!("archive.path: {}\n", archive_path.file_name().unwrap().to_string_lossy()));
+        text.push_str(";;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n;;; ---\n\n");
+        // STATE.decisions.live with bare header (no `(X of Y archived)`), exactly
+        // keep_last=3 visible decisions, no sentinel comment.
+        text.push_str("[STATE]\n");
+        text.push_str("  decisions.live:\n");
+        text.push_str("    d3: kept decision [session 3]\n");
+        text.push_str("    d4: kept decision [session 4]\n");
+        text.push_str("    d5: kept decision [session 5]\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, &tmp_dir);
+        assert!(
+            report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. }
+                    if section == "STATE.decisions.live"
+            )),
+            "expected SentinelMissingInTrimmedSection from DECISIONS.ARCHIVE cross-doc check; got: {:?}",
+            report.errors
+        );
+        let _ = std::fs::remove_file(&archive_path);
+    }
+
+    #[test]
+    fn decisions_live_archive_cross_check_skips_when_no_decisions_live_block() {
+        // Code-review follow-up: P2-A must NOT fire if the live doc has no
+        // `decisions.live:` sub-block at all (e.g. a [STATE] that only carries
+        // `progress:` / `next_steps:`). Otherwise we'd emit a ghost
+        // SentinelMissingInTrimmedSection against a section that doesn't exist.
+        let tmp_dir = std::env::temp_dir();
+        let archive_path = tmp_dir.join("clm-test-decisions-archive-ghost.archive.clm");
+        let archive_text = ";;; CLM/3.0 — archive\n;;; ---\n\n[DECISIONS.ARCHIVE]\n  d1: stale decision from prior phase [session 1]\n;;\n\n;;; EOF | archive\n";
+        std::fs::write(&archive_path, archive_text).unwrap();
+
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | ",
+        );
+        text.push_str(&format!("archive.path: {}\n", archive_path.file_name().unwrap().to_string_lossy()));
+        text.push_str(";;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n;;; ---\n\n");
+        // [STATE] exists but has NO decisions.live: sub-block.
+        text.push_str("[STATE]\n");
+        text.push_str("  progress: phase 2 underway\n");
+        text.push_str("  next_steps: ship 0.2.1\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3_with_filesystem(&doc, &tmp_dir);
+        assert!(
+            !report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. }
+                    if section == "STATE.decisions.live"
+            )),
+            "P2-A cross-check must not fire when no decisions.live sub-block exists; got: {:?}",
+            report.errors
+        );
+        let _ = std::fs::remove_file(&archive_path);
+    }
+
+    #[test]
+    fn malformed_decisions_live_entry_quarantined() {
+        // Codex PR-13 round-8 P2-B regression. A malformed line inside the
+        // decisions.live block (anything not matching `dN: ...`) must be
+        // quarantined: emit a MalformedEntry warning and EXCLUDE from the
+        // visible-entries count. Before the fix, the malformed line counted
+        // toward the threshold and could trigger a false
+        // SentinelMissingInTrimmedSection error.
+        let mut text = String::from(
+            ";;; CLM/3.0 — test\n;;; test.clm\n;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n;;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n;;; ---\n\n",
+        );
+        // 3 valid decisions (== keep_last=3) + 1 malformed line.
+        // Pre-fix: visible_entries=4 > 3 → SentinelMissingInTrimmedSection error.
+        // Post-fix: visible_entries=3 (malformed quarantined) → no error,
+        // MalformedEntry warning emitted.
+        text.push_str("[STATE]\n");
+        text.push_str("  decisions.live:\n");
+        text.push_str("    d1: first decision [session 1]\n");
+        text.push_str("    d2: second decision [session 2]\n");
+        text.push_str("    note: this is an explanatory note, not a real decision\n");
+        text.push_str("    d3: third decision [session 3]\n");
+        text.push_str(";;\n\n");
+        text.push_str(";;; EOF | CLM/3.0\n");
+        let doc = Document::parse(&text).expect("parse failed");
+        let report = validate_v3(&doc);
+        assert!(
+            !report.errors.iter().any(|e| matches!(
+                e,
+                ValidationError::SentinelMissingInTrimmedSection { section, .. }
+                    if section == "STATE.decisions.live"
+            )),
+            "malformed decisions.live line should not trigger sentinel error; got: {:?}",
+            report.errors
+        );
+        assert!(
+            report.warnings.iter().any(|w| matches!(
+                w,
+                ValidationWarning::MalformedEntry { section, .. }
+                    if section == "STATE.decisions.live"
+            )),
+            "expected MalformedEntry warning for the `note:` line; got: {:?}",
+            report.warnings
         );
     }
 }

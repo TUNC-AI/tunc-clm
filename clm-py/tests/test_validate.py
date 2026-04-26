@@ -464,3 +464,106 @@ def test_archive_file_pointing_at_wrong_shape_errors_in_state_c(tmp_path: Path) 
     )
     report = validate_v3_with_filesystem(Document.parse(text), tmp_path)
     assert _has_error(report, "archive_file_wrong_shape_in_state_c")
+
+
+def test_decisions_live_archive_cross_check_demands_sentinel(tmp_path: Path) -> None:
+    """Codex PR-13 round-8 P2-A regression. Symmetric to
+    test_live_section_without_sentinel_errors_when_archive_exists but for
+    [DECISIONS.ARCHIVE]. Live doc has bare `decisions.live:` (no parens),
+    exactly keep_last visible decisions, no sentinel — but the sibling archive
+    contains [DECISIONS.ARCHIVE] proving offload happened. The intra-doc check
+    stays silent (no overflow, no declared offload), so before the fix this
+    validated clean. Now the cross-doc check demands the sentinel."""
+    archive_path = tmp_path / "test.archive.clm"
+    archive_path.write_text(
+        ";;; CLM/3.0 — archive\n;;; ---\n\n"
+        "[DECISIONS.ARCHIVE]\n"
+        "  d1: original decision [session 1]\n"
+        "  d2: another decision [session 2]\n"
+        ";;\n\n;;; EOF | archive\n"
+    )
+    text = (
+        ";;; CLM/3.0 — test\n;;; test.clm\n"
+        f";;; trim.mode: aggressive | archive.mode: sibling | archive.path: {archive_path.name}\n"
+        ";;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n"
+        ";;; ---\n\n"
+        # bare `decisions.live:`, exactly keep_last=3 visible decisions, no sentinel
+        "[STATE]\n"
+        "  decisions.live:\n"
+        "    d3: kept decision [session 3]\n"
+        "    d4: kept decision [session 4]\n"
+        "    d5: kept decision [session 5]\n"
+        ";;\n\n;;; EOF | CLM/3.0\n"
+    )
+    report = validate_v3_with_filesystem(Document.parse(text), tmp_path)
+    assert any(
+        e.kind == "sentinel_missing_in_trimmed_section"
+        and e.details.get("section") == "STATE.decisions.live"
+        for e in report.errors
+    ), f"expected sentinel error from DECISIONS.ARCHIVE cross-doc check; got: {report.errors}"
+
+
+def test_decisions_live_archive_cross_check_skips_when_no_decisions_live_block(tmp_path: Path) -> None:
+    """Code-review follow-up: P2-A must NOT fire if the live doc has no
+    `decisions.live:` sub-block at all (e.g. a [STATE] that only carries
+    `progress:` / `next_steps:`). Otherwise we'd emit a ghost sentinel-missing
+    error against a section that doesn't exist."""
+    archive_path = tmp_path / "decisions-ghost.archive.clm"
+    archive_path.write_text(
+        ";;; CLM/3.0 — archive\n;;; ---\n\n"
+        "[DECISIONS.ARCHIVE]\n"
+        "  d1: stale decision from prior phase [session 1]\n"
+        ";;\n\n;;; EOF | archive\n"
+    )
+    text = (
+        ";;; CLM/3.0 — test\n;;; test.clm\n"
+        f";;; trim.mode: aggressive | archive.mode: sibling | archive.path: {archive_path.name}\n"
+        ";;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n"
+        ";;; ---\n\n"
+        # [STATE] exists but has NO decisions.live: sub-block.
+        "[STATE]\n"
+        "  progress: phase 2 underway\n"
+        "  next_steps: ship 0.2.1\n"
+        ";;\n\n;;; EOF | CLM/3.0\n"
+    )
+    report = validate_v3_with_filesystem(Document.parse(text), tmp_path)
+    assert not any(
+        e.kind == "sentinel_missing_in_trimmed_section"
+        and e.details.get("section") == "STATE.decisions.live"
+        for e in report.errors
+    ), f"P2-A cross-check must not fire when no decisions.live sub-block exists; got: {report.errors}"
+
+
+def test_malformed_decisions_live_entry_quarantined() -> None:
+    """Codex PR-13 round-8 P2-B regression. A malformed line inside the
+    decisions.live block (anything not matching `dN: ...`) must be quarantined:
+    emit a MalformedEntry warning and EXCLUDE from the visible-entries count.
+    Before the fix, the malformed line counted toward the threshold and could
+    trigger a false sentinel-missing error."""
+    text = (
+        ";;; CLM/3.0 — test\n;;; test.clm\n"
+        ";;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n"
+        ";;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n"
+        ";;; ---\n\n"
+        # 3 valid (== keep_last=3) + 1 malformed `note:` line. Pre-fix:
+        # visible_entries=4 > 3 → sentinel error. Post-fix: malformed
+        # quarantined, visible_entries=3, no error, MalformedEntry warning.
+        "[STATE]\n"
+        "  decisions.live:\n"
+        "    d1: first decision [session 1]\n"
+        "    d2: second decision [session 2]\n"
+        "    note: this is an explanatory note, not a real decision\n"
+        "    d3: third decision [session 3]\n"
+        ";;\n\n;;; EOF | CLM/3.0\n"
+    )
+    report = validate_v3(Document.parse(text))
+    assert not any(
+        e.kind == "sentinel_missing_in_trimmed_section"
+        and e.details.get("section") == "STATE.decisions.live"
+        for e in report.errors
+    ), f"malformed decisions.live line should not trigger sentinel error; got: {report.errors}"
+    assert any(
+        w.kind == "malformed_entry"
+        and w.details.get("section") == "STATE.decisions.live"
+        for w in report.warnings
+    ), f"expected MalformedEntry warning for the `note:` line; got: {report.warnings}"
