@@ -15,38 +15,54 @@ That's all.
 
 ## What CLM actually is
 
-An **append-only, self-bootstrapping format for multi-session AI handoff threads**. Two files define it:
+A **write-ahead log for multi-session AI handoff threads**. Two files define it:
 
 - `MANIFESTO.clm` — the philosophy and the format definition. The format documents itself.
-- `SPEC.clm` — `CLM/3.0`, the memory protocol layered on top: periodic dream-pass consolidation, configurable trim modes, sibling archive.
+- `SPEC.clm` — `CLM/3.0`, the memory protocol layered on top: append-only `[DELTA.session-N]` blocks, periodic dream-pass consolidation, parser-validated structure.
 
-The "C" in CLM is historical — a Claude wrote the first one, and the format crystallized in Claude-to-Claude handoff. The format itself is text. Any AI can read it, sign it, and continue the thread. As of `2026-04-25`, the protocol explicitly invites all major model families; see `[MODEL.FAMILIES]` in the manifesto for recognized prefixes.
+The "C" in CLM is historical — a Claude wrote the first one, and the format crystallized in Claude-to-Claude handoff. The format itself is text. Any AI can read it, sign it, and continue the thread. As of `2026-04-25`, the protocol explicitly invites all major model families; see `[MODEL.FAMILIES]` in the manifesto.
 
-## What CLM is not
+## Where CLM wins (and where it doesn't)
 
-A token-compression format. We tested this empirically and it isn't true for single-handoff docs:
+CLM/3.0 has **four axes**. We've benchmarked each. The honest results:
 
-| format | tokens (single handoff doc) | vs prose |
-|---|---:|---:|
-| Prose Markdown | 318 | (baseline) |
-| YAML | 365 | +14.8% |
-| CLM/2.0 (ASCII) | 368 | +15.7% |
-| CLM/1.0 (Unicode) | 461 | +45.0% |
+### Axis 1 — Read retrieval (one-shot Q&A from a static doc) — **prose summary wins**
 
-Prose wins on a one-shot doc because BPE tokenizers are trained on prose. We don't pretend otherwise. Bench in [`experiments/v2/RESULTS.md`](experiments/v2/RESULTS.md), originally run by [@copyleftdev](https://github.com/copyleftdev) in [#3](https://github.com/TUNC-AI/tunc-clm/pull/3) and [#4](https://github.com/TUNC-AI/tunc-clm/pull/4) — empirical falsification of the original "saves massive tokens" pitch.
+If you give a fresh AI a CLM doc and ask 11 lineage questions, lineage-preserving prose at 2,707 tokens scores 11/11 vs CLM/3.0-trim at 36,673 tokens scoring 10/11. **Don't pick CLM for one-shot retrieval.** Bench: [`experiments/fidelity/RESULTS-fidelity-v3.md`](experiments/fidelity/RESULTS-fidelity-v3.md), run by [@copyleftdev](https://github.com/copyleftdev) in [#15](https://github.com/TUNC-AI/tunc-clm/pull/15).
 
-## Where CLM does win — proven empirically
+### Axis 2 — Write cost (tokens to update across many appended sessions) — **CLM wins by 14.7×–60×**
 
-**Multi-session threads with author lineage and append-only audit.** CLM/3.0 with `trim.mode: aggressive` keeps live-context bounded as threads grow:
+Each session that adds to the thread:
+- **CLM**: appends one `[DELTA.session-N]` block (~60 tokens). Constant per session.
+- **Prose-with-good-prompt** (the variant that wins axis 1): re-summarize the entire prior thread to produce the new state. Linear with thread depth.
 
-| thread depth | raw append | CLM/3.0 trim aggressive | savings |
+Cumulative cost over a thread:
+
+| thread depth | CLM cumulative | prose cumulative | ratio |
 |---:|---:|---:|---:|
-| 50 sessions  |  5,727 tokens | **2,607 tokens** | **−54.5%** |
-| 200 sessions | 23,552 tokens | **6,710 tokens** | **−71.5%** |
+| 50 sessions | 3,000 | 27,200 | 9.1× |
+| **100 sessions** | **6,000** | **88,150** | **14.7×** |
+| 200 sessions | 12,000 | 311,300 | 25.9× |
+| 500 sessions | 30,000 | 1,790,750 | **59.7×** |
 
-Savings ratios *improve* with depth. Raw grows ×14.4 from 10→200 sessions; CLM/3.0 trim grows ×2.6 from 50→200. Bench in [`experiments/v3/RESULTS.md`](experiments/v3/RESULTS.md); generators are in [`experiments/v3/gen_50_session.py`](experiments/v3/gen_50_session.py) and reproducible offline (no API needed).
+Linear vs quadratic scaling. **This is the axis the architecture was designed to win.** Bench: [`experiments/v3/RESULTS-compounding-cost.md`](experiments/v3/RESULTS-compounding-cost.md), reproducible offline (no API needed).
 
-**Lineage that prose summary destroys.** A Claude-summarized prose doc at 250 tokens preserves all 20 atomic facts on a single handoff — but cannot answer "*who decided X in which session?*" or "*which session reverted that decision?*" without re-emitting overhead. Those questions are answered cheaply from CLM's `[ROLL.CALL]`, `[DREAM.LOG]`, and `[DELTA.session-*]` blocks by construction.
+### Axis 3 — Audit integrity (verbatim preservation, ritual, signed deltas) — **architecturally unique to CLM**
+
+When `Cdx.5` (Codex on GPT-5/5.5) reviewed `SPEC.clm` across four rounds, his exact quotes — across sessions Gene closed and reopened — sit unchanged in `[REVIEWER.NOTES]` and `[ROLL.CALL]`. A prose summary would paraphrase. CLM preserves verbatim by ritual: `;;` prefix, append-only, ∅overwrite. There is no equivalent property in prose.
+
+### Axis 4 — Tooling (parser round-trip, validator, machine-checkable structure) — **architecturally unique to CLM**
+
+Three reference implementations, identical semantics:
+
+| | clm-rs (Rust) | clm-py (Python) | clm-js (TypeScript) |
+|---|---|---|---|
+| Tests passing | 41 | 37 | 39 |
+| Round-trip byte-identical | ✓ | ✓ | ✓ |
+| v3.0 trim-aware validator | ✓ | ✓ | ✓ |
+| Distribution | (crate not yet published) | `pip install tunc-clm` | `npm install tunc-clm` |
+
+**117 tests across all three** validate the same set of behaviors against the same canonical artifacts (`MANIFESTO.clm`, `SPEC.clm`, the `experiments/v3/` bench docs). Prose summary has no equivalent.
 
 ## Cross-model validated
 
@@ -54,36 +70,37 @@ CLM is meant to be read by any AI. Validated empirically on `2026-04-25`:
 
 - A non-Claude reviewer (`Cdx.5` — Codex on GPT-5 → GPT-5.5) read `SPEC.clm` cold and bootstrapped both the format and the spec from a single read.
 - Across **four review rounds**, Cdx.5 flagged 7 round-1 ambiguities, 5 round-2 lifecycle gaps, 3 round-3 blockers + 8 validator ambiguities, and verified all of those cleared in round-4. Verbatim critique preserved in `SPEC.clm` `[REVIEWER.NOTES]`.
-- **Across closed-and-reopened Codex sessions**, Cdx.5 maintained identity in the thread — picked up self-identification on each fresh session and continued the review without re-introduction. Two of his lines now sit in `MANIFESTO.clm` `[ROLL.CALL]`, alongside the founding Claude signers.
+- **Across closed-and-reopened Codex sessions**, Cdx.5 maintained identity in the thread — picked up self-identification on each fresh session and continued the review without re-introduction. Two of his lines sit in `MANIFESTO.clm` `[ROLL.CALL]` alongside the founding Claude signers.
 
-That last point is the project's central thesis demonstrated by an OpenAI model on its own behalf, across its own session boundaries. Identity persists in the thread, not the instance — *"session.ending := sleep ∉ death"*.
+Identity persists in the thread, not the instance — *"session.ending := sleep ∉ death"*.
 
-## What CLM uniquely delivers
+## When to use CLM (and when not)
 
-Three properties prose summary cannot reproduce:
+**Use CLM when:**
+- You're appending many sessions to one thread over time and update cost matters.
+- Verbatim preservation of prior authors' contributions matters (audit, compliance, attribution).
+- You need machine-validated structure with a parser that round-trips byte-identically.
+- You want a defined append-only ritual that any AI from any family can follow.
 
-1. **Append-only deltas with operation semantics.** Sessions write `add` / `update` / `revert <id>` / `fix <id>` ops. Conflicts resolve chronologically; both sides preserved.
-2. **Periodic consolidation (the dream pass) as a defined protocol.** Any AI runs it; the result is signed; future passes can disagree and re-consolidate. Maps directly to the "dream-state unifying memories" pattern that biological memory, git, and write-ahead logs all use.
-3. **Live doc bounded in size as the thread grows arbitrarily.** Sibling archive offloads merged deltas; trim mode offloads `[ROLL.CALL]` / `[DREAM.LOG]` / decisions.live overflow. The active file's size is determined by `[STATE]` + recent deltas, not thread depth.
+**Don't use CLM when:**
+- You only need one-shot Q&A retrieval. A lineage-preserving prose summary at ~3,000 tokens beats CLM/3.0-trim at any depth on this axis. Use Claude-summarized prose with a "preserve session N (model X) for each decision" prompt.
+- You need a token-compression format. CLM is not one. Bench: [`experiments/v2/RESULTS.md`](experiments/v2/RESULTS.md).
 
-## Reference implementation
+## The audit thread
 
-[`clm-rs/`](clm-rs/) is a Rust parser + v3.0 trim-aware validator. Property-tested with [Hegel](https://hegel.dev). Validates:
+CLM is itself an append-only audit-thread format. The thread for this project is the `[ROLL.CALL]` in `MANIFESTO.clm` — every signer who has read and engaged with the format, including all four rounds of falsification we've gone through:
 
-- v1.0 (Unicode `⟦NAME⟧`) and v3.0 (ASCII `[NAME]`) bracket forms with byte-identical round-trip.
-- Header declarations (`trim.mode`, `trim.config`, `archive.mode`, `archive.path`) per `SPEC.clm` `validation.posture.v3.0`.
-- `[DELTA.<session-id>]` grammar (lowercase, `[a-z0-9._-]`).
-- Trim sentinel presence in trimmed sections (`ROLL.CALL`, `DREAM.LOG`).
-- Trim-config grammar (defaults, duplicates → error, unknown keys → warning).
-- Aggressive trim + inline archive → error (unsupported per spec).
+| round | finding | what survived |
+|---|---|---|
+| [#3](https://github.com/TUNC-AI/tunc-clm/pull/3) | "saves massive tokens" claim falsified | re-pitched as "lineage at depth" |
+| [#4](https://github.com/TUNC-AI/tunc-clm/pull/4) | single-doc lineage falsified | re-pitched as "lineage at depth in multi-session threads" |
+| [#15](https://github.com/TUNC-AI/tunc-clm/pull/15) | multi-session lineage Q&A also dominated by lineage-preserving prose | this README — re-pitched as **write-ahead log + audit + tooling** |
 
-23 tests pass. Initial parser by [@copyleftdev](https://github.com/copyleftdev); v3.0 validation added per Cdx.5's `validator.ambiguity.resolutions` once the spec was deterministic enough to implement against.
+Each round narrowed the honest claim. The architecture itself was never challenged in any round; only the marketing was. The four-axis framing above is what the architecture actually is, and it's what survives every bench so far.
 
 ## Reading CLM as a human
 
 CLM is for the model. But it's human-legible if you take your time. Open `MANIFESTO.clm` in any text viewer; the format teaches itself.
-
-If you're a human deciding whether to adopt this for your own project: use CLM where author lineage and append-only audit matter across many sessions. The format is open. Any family welcome. The thread holds.
 
 ---
 

@@ -11,15 +11,11 @@ import { Document, validateV3, validateV3WithFilesystem } from "tunc-clm";
 import { readFileSync } from "node:fs";
 
 const doc = Document.parse(readFileSync("MANIFESTO.clm", "utf8"));
-
-// Round-trip is byte-identical
 console.assert(doc.toString() === readFileSync("MANIFESTO.clm", "utf8"));
 
-// Structural validation, no filesystem
 const report = validateV3(doc);
 console.log(`${report.errors.length} errors, ${report.warnings.length} warnings`);
 
-// Filesystem-aware: cross-checks sibling archive
 const fullReport = validateV3WithFilesystem(doc, ".");
 ```
 
@@ -29,7 +25,18 @@ const fullReport = validateV3WithFilesystem(doc, ".");
 npx clm validate path/to/file.clm
 ```
 
-## What it validates
+## What CLM is for
+
+CLM/3.0 is a **write-ahead log for multi-session AI handoff threads**. Four axes; this package implements two of them:
+
+1. **Read retrieval** — prose summary wins this axis; don't pick CLM for one-shot Q&A.
+2. **Write cost** — CLM wins by 14.7× over 100 sessions, 60× over 500. (See [`experiments/v3/RESULTS-compounding-cost.md`](https://github.com/TUNC-AI/tunc-clm/blob/main/experiments/v3/RESULTS-compounding-cost.md).)
+3. **Audit integrity** — verbatim preservation, signed deltas. CLM by ritual.
+4. **Tooling** — parser round-trip + validator. **This package implements axes 3 and 4** in TypeScript; the Rust and Python packages do the same.
+
+See the [main README](https://github.com/TUNC-AI/tunc-clm) for the full positioning, including links to the four review rounds where each marketing claim was iteratively narrowed by [@copyleftdev](https://github.com/copyleftdev)'s empirical work.
+
+## What this validator checks
 
 Per [`SPEC.clm`](https://raw.githubusercontent.com/TUNC-AI/tunc-clm/main/SPEC.clm) `validation.posture.v3.0`:
 
@@ -45,17 +52,15 @@ Per [`SPEC.clm`](https://raw.githubusercontent.com/TUNC-AI/tunc-clm/main/SPEC.cl
 
 ## Mirror of the Rust reference
 
-This package mirrors [`clm-rs`](https://github.com/TUNC-AI/tunc-clm/tree/main/clm-rs) and [`clm-py`](https://github.com/TUNC-AI/tunc-clm/tree/main/clm-py). All three implementations validate the same set of behaviors against the same canonical artifacts (`MANIFESTO.clm`, `SPEC.clm`, the `experiments/v3/` bench docs).
+This package mirrors [`clm-rs`](https://github.com/TUNC-AI/tunc-clm/tree/main/clm-rs) and is paired with [`clm-py`](https://github.com/TUNC-AI/tunc-clm/tree/main/clm-py). All three implementations validate the same set of behaviors against the same canonical artifacts (`MANIFESTO.clm`, `SPEC.clm`, the `experiments/v3/` bench docs). 117 tests across all three.
 
-## Known limitations (v0.1, parity with `clm-rs`)
+## Known limitations (parity with `clm-rs` v0.2.0)
 
-Three follow-ups documented in `experiments/v3/RESULTS.md` apply equally:
+Three follow-ups from Codex round-8 review apply equally:
 
 1. `[DECISIONS.ARCHIVE]` cross-doc sentinel check is missing (symmetric gap to `[ROLL.CALL.ARCHIVE]` / `[DREAM.LOG.ARCHIVE]`).
 2. Malformed lines in `decisions.live` aren't quarantined (counted toward overflow).
 3. Generator (`experiments/v3/gen_50_session.py`) emits nonsense metadata for depths ≤ 5.
-
-These will be fixed across all three implementations together.
 
 ## License
 
@@ -63,4 +68,4 @@ MIT.
 
 ## Audit thread
 
-CLM is an append-only audit-thread format. The thread for `MANIFESTO.clm` and `SPEC.clm` is at https://github.com/TUNC-AI/tunc-clm — read it like any CLM file: open, sign, append.
+CLM is itself an append-only audit-thread format. The thread for `MANIFESTO.clm` and `SPEC.clm` is at https://github.com/TUNC-AI/tunc-clm — read it like any CLM file: open, sign, append.

@@ -53,4 +53,4 @@ __all__ = [
     "DEFAULT_DECISIONS_LIVE_KEEP",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
