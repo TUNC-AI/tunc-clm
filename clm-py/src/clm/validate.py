@@ -460,6 +460,20 @@ def _check_section_sentinels(
                 errors.append(_sentinel_missing(name, entries, trim.dream_log))
         elif name == "STATE":
             stats = _decisions_live_stats(section.body)
+            # Surface any malformed (quarantined) lines as warnings — same
+            # shape as the [ROLL.CALL] / [DREAM.LOG] handling. They are
+            # already excluded from `visible_entries` per spec.
+            for content in stats.malformed:
+                warnings.append(
+                    ValidationWarning(
+                        kind="malformed_entry",
+                        message=(
+                            f"[STATE.decisions.live] entry does not match expected shape: {content!r} "
+                            "(quarantined; not counted for trim)"
+                        ),
+                        details={"section": "STATE.decisions.live", "content": content},
+                    )
+                )
             visible_overflow = stats.visible_entries > trim.decisions_live
             declared_offload = (stats.declared_offload_count or 0) > 0
             if (visible_overflow or declared_offload) and not stats.sentinel_present:
@@ -525,6 +539,28 @@ def _cross_check_live_against_archive(
                 if line.strip() and not line.strip().startswith(";;")
             )
             errors.append(_sentinel_missing("DREAM.LOG", entries, 0))
+
+    # DECISIONS.ARCHIVE: symmetric to ROLL.CALL.ARCHIVE / DREAM.LOG.ARCHIVE.
+    # The intra-doc check in `_check_section_sentinels` only fires on
+    # `visible_overflow or declared_offload`, so a state.C doc with bare
+    # `decisions.live:` (no `(X of Y archived)`), exactly keep_last visible
+    # decisions, and no sentinel — but with a populated sibling
+    # [DECISIONS.ARCHIVE] proving offload — would otherwise pass. The
+    # archive's existence is stronger evidence than the header parens.
+    # (Codex PR-13 round-8 P2-A; resolved in 0.2.1.)
+    if "DECISIONS.ARCHIVE" in archive_section_names:
+        state_body = live_body("STATE")
+        if state_body is not None:
+            stats = _decisions_live_stats(state_body)
+            # Guard: only fire if a decisions.live: sub-block actually exists in
+            # the live doc. Otherwise (e.g. a [STATE] that only carries progress:
+            # / next_steps:, or no [STATE] at all), we'd emit a ghost
+            # SentinelMissingInTrimmedSection against a section that isn't there
+            # — a real false positive caught in code review.
+            if stats.block_found and not stats.sentinel_present:
+                errors.append(
+                    _sentinel_missing("STATE.decisions.live", stats.visible_entries, 0)
+                )
 
 
 # ---- helpers ----
@@ -595,12 +631,18 @@ def _has_sentinel(body: list[str], section_name: str) -> bool:
 
 
 def _sentinel_missing(section: str, entries: int, keep: int) -> ValidationError:
+    # The sub-block `STATE.decisions.live` archives to `[DECISIONS.ARCHIVE]`,
+    # not `[STATE.decisions.live.ARCHIVE]`. Naive f"{section}.ARCHIVE" produced
+    # the wrong example in the hint. Caught in code review.
+    archive_marker = (
+        "DECISIONS.ARCHIVE" if section == "STATE.decisions.live" else f"{section}.ARCHIVE"
+    )
     return ValidationError(
         kind="sentinel_missing_in_trimmed_section",
         message=(
             f"section [{section}] has {entries} entries (keep_last = {keep}); "
             "truncation sentinel is required before kept entries "
-            f"(e.g. `;; (oldest N entries offloaded to [{section}.ARCHIVE] in sibling)`)"
+            f"(e.g. `;; (oldest N entries offloaded to [{archive_marker}] in sibling)`)"
         ),
         details={"section": section, "entries": entries, "keep": keep},
     )
@@ -611,6 +653,19 @@ class _DecisionsLiveStats:
     visible_entries: int = 0
     sentinel_present: bool = False
     declared_offload_count: Optional[int] = None
+    # Lines in the decisions.live block that don't match the `dN: ...` shape.
+    # Per SPEC.clm `malformed.entry.behavior`: QUARANTINE + WARNING — they are
+    # excluded from `visible_entries` so a single broken line cannot push the
+    # block over `trim.config.decisions_live` and trigger a false sentinel-missing
+    # error. Callers (specifically `_check_section_sentinels`) emit
+    # `MalformedEntry` warnings for each.
+    malformed: list[str] = field(default_factory=list)
+    # Whether a `decisions.live:` header was found in the [STATE] body. Used by
+    # the P2-A cross-doc check to avoid emitting a false sentinel-missing error
+    # against a sub-block that doesn't exist (e.g. a [STATE] that only carries
+    # `progress:` / `next_steps:` but whose sibling archive contains a stale
+    # `[DECISIONS.ARCHIVE]` from a prior phase).
+    block_found: bool = False
 
 
 def _decisions_live_stats(state_body: list[str]) -> _DecisionsLiveStats:
@@ -630,6 +685,7 @@ def _decisions_live_stats(state_body: list[str]) -> _DecisionsLiveStats:
                 if next_char in (":", "(", " "):
                     in_block = True
                     block_indent = leading
+                    stats.block_found = True
                     stats.declared_offload_count = _parse_decisions_live_header_paren(
                         trimmed[len("decisions.live"):]
                     )
@@ -649,6 +705,20 @@ def _decisions_live_stats(state_body: list[str]) -> _DecisionsLiveStats:
                 stats.sentinel_present = True
             continue
 
+        # Quarantine malformed lines (anything not `dN: ...`). Per spec they are
+        # preserved verbatim, surfaced as warnings, and excluded from the count
+        # so a single broken line cannot push the block over the keep_last
+        # threshold. (Codex PR-13 round-8 P2-B; resolved in 0.2.1.)
+        if not _looks_like_decision_entry(trimmed):
+            stats.malformed.append(trimmed)
+            continue
+
+        # Note the deliberate asymmetry with `_has_sentinel`: there, ANY
+        # non-comment non-blank line terminates the "before-entries" zone.
+        # Here, only WELL-FORMED entries do. Spec rationale: the sentinel
+        # requirement is `BEFORE the kept entries`, and quarantined malformed
+        # lines are not "kept entries." So a sentinel placed after a quarantined
+        # line but before any well-formed entry is still valid.
         stats.visible_entries += 1
         seen_entry_yet = True
 

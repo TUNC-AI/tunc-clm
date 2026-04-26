@@ -438,4 +438,105 @@ describe("validateV3WithFilesystem", () => {
     const r = validateV3WithFilesystem(Document.parse(text), tmpDir);
     expect(hasError(r, "archive_file_wrong_shape_in_state_c")).toBe(true);
   });
+
+  it("decisions.live archive cross-check demands sentinel (P2-A regression)", () => {
+    // Codex PR-13 round-8 P2-A. Symmetric to the live-section-without-sentinel
+    // test above but for [DECISIONS.ARCHIVE]. Live doc has bare
+    // `decisions.live:` (no parens), exactly keep_last visible decisions, no
+    // sentinel — but the sibling archive contains [DECISIONS.ARCHIVE] proving
+    // offload happened. The intra-doc check stays silent (no overflow, no
+    // declared offload), so before the fix this validated clean. Now the
+    // cross-doc check demands the sentinel.
+    const archivePath = join(tmpDir, "decisions.archive.clm");
+    writeFileSync(
+      archivePath,
+      `;;; CLM/3.0 — archive\n;;; ---\n\n[DECISIONS.ARCHIVE]\n  d1: original decision [session 1]\n  d2: another decision [session 2]\n;;\n\n;;; EOF | archive\n`
+    );
+    const text =
+      `;;; CLM/3.0 — test\n;;; test.clm\n` +
+      `;;; trim.mode: aggressive | archive.mode: sibling | archive.path: decisions.archive.clm\n` +
+      `;;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n;;; ---\n\n` +
+      // bare `decisions.live:`, exactly keep_last=3 visible decisions, no sentinel
+      `[STATE]\n` +
+      `  decisions.live:\n` +
+      `    d3: kept decision [session 3]\n` +
+      `    d4: kept decision [session 4]\n` +
+      `    d5: kept decision [session 5]\n` +
+      `;;\n\n;;; EOF | CLM/3.0\n`;
+    const r = validateV3WithFilesystem(Document.parse(text), tmpDir);
+    expect(
+      r.errors.some(
+        (e) =>
+          e.kind === "sentinel_missing_in_trimmed_section" &&
+          (e.details as { section: string }).section === "STATE.decisions.live"
+      )
+    ).toBe(true);
+  });
+
+  it("decisions.live archive cross-check skips when no decisions.live block (review follow-up)", () => {
+    // Code-review follow-up: P2-A must NOT fire if the live doc has no
+    // `decisions.live:` sub-block at all (e.g. a [STATE] that only carries
+    // `progress:` / `next_steps:`). Otherwise we'd emit a ghost sentinel-missing
+    // error against a section that doesn't exist.
+    const archivePath = join(tmpDir, "decisions-ghost.archive.clm");
+    writeFileSync(
+      archivePath,
+      `;;; CLM/3.0 — archive\n;;; ---\n\n[DECISIONS.ARCHIVE]\n  d1: stale decision from prior phase [session 1]\n;;\n\n;;; EOF | archive\n`
+    );
+    const text =
+      `;;; CLM/3.0 — test\n;;; test.clm\n` +
+      `;;; trim.mode: aggressive | archive.mode: sibling | archive.path: decisions-ghost.archive.clm\n` +
+      `;;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n;;; ---\n\n` +
+      // [STATE] exists but has NO decisions.live: sub-block.
+      `[STATE]\n` +
+      `  progress: phase 2 underway\n` +
+      `  next_steps: ship 0.2.1\n` +
+      `;;\n\n;;; EOF | CLM/3.0\n`;
+    const r = validateV3WithFilesystem(Document.parse(text), tmpDir);
+    expect(
+      r.errors.some(
+        (e) =>
+          e.kind === "sentinel_missing_in_trimmed_section" &&
+          (e.details as { section: string }).section === "STATE.decisions.live"
+      )
+    ).toBe(false);
+  });
+
+  it("malformed decisions.live entry quarantined (P2-B regression)", () => {
+    // Codex PR-13 round-8 P2-B. A malformed line inside the decisions.live
+    // block (anything not matching `dN: ...`) must be quarantined: emit a
+    // MalformedEntry warning and EXCLUDE from the visible-entries count.
+    // Before the fix, the malformed line counted toward the threshold and
+    // could trigger a false sentinel-missing error.
+    const text =
+      `;;; CLM/3.0 — test\n;;; test.clm\n` +
+      `;;; trim.mode: aggressive | archive.mode: sibling | archive.path: t.archive.clm\n` +
+      `;;; trim.config: roll_call=10, dream_log=10, decisions_live=3\n;;; ---\n\n` +
+      // 3 valid (== keep_last=3) + 1 malformed `note:` line.
+      // Pre-fix: visibleEntries=4 > 3 → sentinel error.
+      // Post-fix: malformed quarantined, visibleEntries=3 → no error,
+      // MalformedEntry warning emitted.
+      `[STATE]\n` +
+      `  decisions.live:\n` +
+      `    d1: first decision [session 1]\n` +
+      `    d2: second decision [session 2]\n` +
+      `    note: this is an explanatory note, not a real decision\n` +
+      `    d3: third decision [session 3]\n` +
+      `;;\n\n;;; EOF | CLM/3.0\n`;
+    const r = validateV3(Document.parse(text));
+    expect(
+      r.errors.some(
+        (e) =>
+          e.kind === "sentinel_missing_in_trimmed_section" &&
+          (e.details as { section: string }).section === "STATE.decisions.live"
+      )
+    ).toBe(false);
+    expect(
+      r.warnings.some(
+        (w) =>
+          w.kind === "malformed_entry" &&
+          (w.details as { section: string }).section === "STATE.decisions.live"
+      )
+    ).toBe(true);
+  });
 });
