@@ -12,20 +12,20 @@ Two formats, same canonical scenario: a thread that accumulates one new session 
 
 ## Numbers
 
-| session N | CLM update (constant) | prose summary (grows) | ratio (prose/CLM) |
+| session N | CLM update (slowly grows) | prose summary (grows faster) | ratio (prose/CLM) |
 |---:|---:|---:|---:|
-| 1 | 176 | 62 | 0.4× |
-| 5 | 176 | 195 | 1.1× |
-| 10 | 176 | 320 | 1.8× |
-| 25 | 176 | 614 | 3.5× |
-| 50 | 176 | 1,007 | 5.7× |
-| 100 | 176 | 1,650 | 9.4× |
-| 200 | 176 | 2,707 | 15.4× |
-| 500 | 176 | 5,200 | 29.5× |
+| 1 | 236 | 62 | 0.3× |
+| 5 | 236 | 195 | 0.8× |
+| 10 | 237 | 319 | 1.3× |
+| 25 | 238 | 614 | 2.6× |
+| 50 | 239 | 1,007 | 4.2× |
+| 100 | 242 | 1,651 | 6.8× |
+| 200 | 248 | 2,707 | 10.9× |
+| 500 | 266 | 5,204 | 19.5× |
 
-CLM's per-session update cost is **constant**. Prose-with-good-prompt's per-session cost grows as N^0.7133 (sub-linear because the summarizer paraphrases as content grows; matches Don's empirical 50→200 ratio of ×2.69 for ×4 sessions).
+CLM's per-session update cost grows slowly with depth (`decisions.reverted/superseded` accumulate at ~0.3 tokens/session in `[STATE]`; archive writes per dream are constant). Prose-with-good-prompt's per-session cost grows as N^0.7133 (sub-linear because the summarizer paraphrases as content grows; matches Don's empirical 50→200 ratio of ×2.69 for ×4 sessions).
 
-The crossover point is around 5 sessions — below that, prose is cheaper per-update. Above, CLM is cheaper, with the gap widening as the thread grows.
+The crossover point is around 8 sessions — below that, prose is cheaper per-update. Above, CLM is cheaper, with the gap widening as the thread grows.
 
 ### Cumulative cost across the full thread up to session N
 
