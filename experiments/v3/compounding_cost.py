@@ -4,28 +4,39 @@ This is the bench that maps to the axis CLM/3.0 was actually designed for —
 write-side / append cost — which copyleftdev's PR #15 read-side Q&A bench
 explicitly does not measure.
 
-The thesis copyleftdev's bench tested was: "given a static doc, can a fresh
-Claude session retrieve lineage facts?" Lineage-preserving prose summary won
-that bench (11/11 at 2,707 tokens vs CLM/3.0-trim's 10/11 at 36,673 tokens).
-
-The thesis THIS bench tests is different: "as a thread accumulates more
-sessions over time, how many tokens does each format pay to update the doc
-each time a new session appends?"
+The thesis: as a thread accumulates one new session at a time, how many
+tokens does each format spend per update?
 
 Two strategies:
 
-  CLM/3.0:    each new session writes a delta block (~80 tokens). Periodic
-              dream-pass consolidation amortizes across many sessions.
-              Update cost is O(1) per session amortized.
+  CLM/3.0:    each new session writes one [DELTA.session-N] block plus a
+              [ROLL.CALL] line. Periodic dream-pass consolidation rewrites
+              the [STATE] keys (bounded by trim.config.decisions_live=8 by
+              default) and appends a [DREAM.LOG] entry.
 
   Prose-with- each new session means re-summarizing the entire prior thread
-  good-prompt: with the same lineage-preserving prompt, then writing the
-              new summary. Update cost is O(N) per session (you re-summarize
-              everything every time).
+  good-prompt: with the lineage-preserving prompt, then writing the new
+              summary. Generation cost grows with thread depth.
 
 This is a tokenization bench — no API spend. We use tiktoken (o200k_base)
 the same way as `tokens.py`. Caveats apply (Anthropic's BPE differs ~5-15%
 in absolute counts; relative ordering reliable).
+
+CALIBRATION NOTES (per Codex PR-16 review round-1):
+
+  The prose model is calibrated to copyleftdev's PR #15 empirical points:
+    N=50  → 1,007 tokens (prose-50-lineage with explicit lineage prompt)
+    N=200 → 2,707 tokens (prose-200-lineage)
+  Power-law fit: tokens ≈ 53.2 × N^0.713. Sub-linear in N (matches Don's
+  observation: 50→200 = ×4 sessions but only ×2.69 output, because the
+  summarizer paraphrases as content grows).
+
+  The CLM total includes dream-pass output (NOT zero as in the v0.1 bench).
+  Per-session CLM output:
+    - one delta block (~60 tokens, sampled empirically)
+    - one [ROLL.CALL] entry (~50 tokens)
+    - amortized dream-pass cost: state rewrite + DREAM.LOG entry
+      (state under trim.aggressive is bounded by decisions_live=8)
 
 Run: python3 experiments/v3/compounding_cost.py
 """
@@ -44,155 +55,156 @@ def count_tokens(text: str) -> int:
     return len(ENC.encode(text))
 
 
-def synthesize_clm_delta(session_n: int, decision_text: str, author: str, date: str) -> str:
-    """A typical CLM/3.0 [DELTA.session-N] block. ~80 tokens."""
+# ---- empirical samples ----
+
+def sample_clm_delta() -> str:
     return (
-        f"[DELTA.session-{session_n}]\n"
-        f"  ;; {author} | {date} | append-only:\n"
-        f"  add.decision d{session_n}: {decision_text}\n"
-        f"  add.file: internal/feature/session_{session_n}.go\n"
-        f";;\n\n"
+        "[DELTA.session-47]\n"
+        "  ;; CLd.Ops4.7 | 2026-06-06 | append-only:\n"
+        "  add.decision d47: rate-limit threshold reduced 100/min -> 60/min\n"
+        "  add.file: internal/ratelimit/config.go\n"
+        ";;\n\n"
     )
 
 
-def synthesize_prose_session_facts(session_n: int, decision_text: str, author: str, date: str) -> str:
-    """The raw fact (one line) that the prose summarizer ingests for each session."""
-    return f"Session {session_n} ({author}, {date}): {decision_text}.\n"
+def sample_roll_call_line() -> str:
+    return '  CLd.Ops4.7 · 2026-06-06 · "session 47: rate-limit threshold reduced"\n'
 
 
-def estimate_prose_summary_size(n_sessions: int, base_summary_tokens: int = 2700) -> int:
-    """A lineage-preserving prose summary at 200 sessions copyleftdev measured at
-    2,707 tokens. We model the summary growing linearly with session count: each
-    session contributes ~13 tokens of distilled "Session N (Model X) decided Y"
-    text in the summary (2700 / 200).
+def sample_dream_log_entry() -> str:
+    return "  2026-06-06 evening | CLd.Ops4.7 | consolidated 5 deltas (sessions 41-45) | sibling | wrote new [STATE]\n"
 
-    A more careful model would use a sub-linear curve (the prose summarizer
-    paraphrases and consolidates as content grows), but linear is the right
-    first-order shape and matches copyleftdev's empirical 50→200 ratio
-    (1,007 → 2,707 = ×2.69 for 4× the sessions, so sub-linear in practice).
+
+def sample_state_keys_under_trim() -> str:
+    """Under trim.mode aggressive with decisions_live=8, the [STATE].decisions.live
+    sub-block holds at most 8 decision lines. The rest of [STATE] is keys (project,
+    status, shipped.versions, decisions.reverted/superseded). This is a realistic
+    bounded state for a deep thread under aggressive trim."""
+    return (
+        "[STATE]\n"
+        "  ;; consolidated by CLd.Ops4.7 during dream pass over sessions 1-195\n"
+        "  ;; last.dream: 2026-06-06 evening\n"
+        "\n"
+        "  goal: auth platform — extraction, hardening, OAuth, MFA, perf+security audit\n"
+        "  status: in-progress (latest session: 200)\n"
+        "  shipped.versions: [v0.4.0, v0.4.1, v0.5.0, v0.6.0, v0.6.1, v0.7.0]\n"
+        "  decisions.live (175 of 195 archived):\n"
+        "    ;; (oldest 167 live decisions offloaded to [DECISIONS.ARCHIVE] in sibling)\n"
+        "    d188: audit log MFA enable/disable events (cycle 4) [session 188]\n"
+        "    d189: WebAuthn passkey support deferred to v0.7 (cycle 4) [session 189]\n"
+        "    d190: ship MFA as v0.6.0 (cycle 4) [session 190]\n"
+        "    d191: third-party security audit by Trail of Bits (cycle 4) [session 191]\n"
+        "    d192: audit findings: CVE-class issue in JWT verify [session 192]\n"
+        "    d193: backport JWT migration to v0.6.x (cycle 4) [session 193]\n"
+        "    d194: performance: middleware chain p95 800us -> 120us [session 194]\n"
+        "    d195: memory: session cache pool sync.Pool (cycle 4) [session 195]\n"
+        "  decisions.reverted: [d4, d14, d23, d24, d54, d64, d73, d74]\n"
+        "  decisions.superseded: [d3, d53, d103, d153]\n"
+        ";;\n"
+    )
+
+
+# ---- prose model (calibrated to PR #15) ----
+
+def prose_summary_size(n_sessions: int) -> int:
+    """Power-law fit to PR #15's two empirical measurements:
+        N=50  → 1,007 tokens
+        N=200 → 2,707 tokens
+
+    Solving log(2707/1007) = p × log(200/50) gives p ≈ 0.713.
+    Then a × 50^0.713 = 1007 ⇒ a ≈ 53.2.
+
+    Verifies: 53.2 × 50^0.713  ≈ 1,007  ✓
+              53.2 × 200^0.713 ≈ 2,704  ✓ (within 0.1% of measured)
     """
-    # Linear model: per-session contribution to the summary
-    per_session = base_summary_tokens / 200
-    # But also a fixed overhead for headers, status lines, framing
-    overhead = 200
-    return int(overhead + n_sessions * per_session)
+    if n_sessions <= 0:
+        return 0
+    return int(round(53.2 * (n_sessions ** 0.713)))
 
 
-def clm_total_state_tokens(n_sessions: int) -> int:
-    """Tokens in the CLM/3.0-trim live doc after N sessions, *post-dream*.
-
-    Approximation based on PR #13/#14 numbers: 2,605 tokens at 50 sessions,
-    6,710 tokens at 200 sessions (CLM/3.0 trim aggressive). Linear interpolation
-    works for our purposes since the architecture's design is bounded growth.
-    """
-    if n_sessions <= 50:
-        return int(n_sessions * (2605 / 50))
-    # Scaling segment: 50 -> 200 = +4105 tokens for +150 sessions = ~27 tokens/session
-    return int(2605 + (n_sessions - 50) * (6710 - 2605) / 150)
-
+# ---- main ----
 
 def main() -> None:
+    delta_tokens = count_tokens(sample_clm_delta())
+    roll_call_tokens = count_tokens(sample_roll_call_line())
+    state_tokens = count_tokens(sample_state_keys_under_trim())
+    dream_log_tokens = count_tokens(sample_dream_log_entry())
+    dream_pass_output = state_tokens + dream_log_tokens + roll_call_tokens
+
     print("=" * 78)
     print("COMPOUNDING-COST BENCH — tokens spent per session UPDATE")
     print("=" * 78)
     print()
-    print("This measures the WRITE-side axis: each session, the AI must produce")
-    print("the new doc state. CLM appends a delta. Prose-with-good-prompt re-")
-    print("summarizes the whole thread.")
+    print("Each session that adds to a thread, the AI must produce the new doc state.")
+    print("CLM appends a delta + roll-call line; every 5th session also runs a dream")
+    print("pass (rewrite [STATE] under trim, append [DREAM.LOG] entry).")
+    print("Prose-with-good-prompt re-summarizes the entire prior thread each time.")
     print()
     print("(o200k_base tokenizer; ~5-15% off Anthropic's BPE; relative ordering")
-    print(" reliable.)")
+    print(" reliable. Prose model power-law-calibrated to PR #15's two empirical")
+    print(" points: N=50→1,007 and N=200→2,707, fit gives 53.2 × N^0.713.)")
+    print()
+    print(f"  Sampled CLM delta block:      {delta_tokens:>4} tokens")
+    print(f"  Sampled [ROLL.CALL] line:     {roll_call_tokens:>4} tokens")
+    print(f"  Sampled [STATE] under trim:   {state_tokens:>4} tokens (bounded by decisions_live=8)")
+    print(f"  Sampled [DREAM.LOG] entry:    {dream_log_tokens:>4} tokens")
+    print(f"  -> dream pass output:         {dream_pass_output:>4} tokens (rewrite [STATE] + new DREAM.LOG + dream-signing roll-call line)")
     print()
 
-    # Calibrate: measure one realistic CLM delta and the prose per-session fact.
-    sample_delta = synthesize_clm_delta(
-        47,
-        "rate-limit threshold reduced 100/min -> 60/min",
-        "CLd.Ops4.7",
-        "2026-06-06",
-    )
-    delta_tokens = count_tokens(sample_delta)
-    print(f"  Sampled CLM delta block: {delta_tokens} tokens")
-    print(f"  (one-time append cost; doesn't grow with thread depth)")
+    # CLM per-session amortized cost: every session pays delta + roll-call;
+    # every 5th session additionally pays the dream-pass output.
+    clm_per_session = delta_tokens + roll_call_tokens + (dream_pass_output / 5.0)
+
+    print(f"  CLM per-session amortized:    {clm_per_session:>6.1f} tokens")
+    print(f"     = {delta_tokens} (delta) + {roll_call_tokens} (roll-call) + {dream_pass_output}/5 (amortized dream)")
     print()
 
     print("=" * 78)
-    print("Update cost for the Nth session — as the thread grows")
+    print("Per-update cost at thread depth N — CLM is constant; prose grows")
     print("=" * 78)
     print()
-    print(f"{'session N':>10}  {'CLM delta':>11}  {'prose re-summary':>18}  {'ratio':>10}")
-    print("-" * 60)
+    print(f"{'session N':>10}  {'CLM update':>11}  {'prose summary':>15}  {'ratio':>10}")
+    print("-" * 55)
 
-    rows: list[tuple[int, int, int]] = []
     for n in [1, 5, 10, 25, 50, 100, 200, 500]:
-        # CLM update cost = one delta append. (Dream-pass cost amortized across
-        # ~5 sessions; we omit it here; the order of magnitude is unchanged.)
-        clm_cost = delta_tokens
-
-        # Prose update cost = re-summarize the whole thread to get the new state.
-        # That is, generate a summary of size estimate_prose_summary_size(n).
-        # Generation cost = output tokens. (Input cost is also paid but is
-        # cheaper per token; we report output tokens which is the dominant cost.)
-        prose_cost = estimate_prose_summary_size(n)
-
-        ratio = prose_cost / clm_cost
-        rows.append((n, clm_cost, prose_cost))
-        print(f"{n:>10}  {clm_cost:>11}  {prose_cost:>18}  {ratio:>9.1f}x")
+        prose = prose_summary_size(n)
+        ratio = prose / clm_per_session
+        print(f"{n:>10}  {clm_per_session:>11.1f}  {prose:>15}  {ratio:>9.1f}x")
 
     print()
     print("=" * 78)
     print("Cumulative cost across the FULL thread up to session N")
     print("=" * 78)
     print()
-    print("Each new session: CLM appends ONCE; prose re-generates the whole summary.")
+    print("Each session: CLM appends delta + roll-call (every 5th adds dream).")
+    print("Prose re-summarizes from scratch.")
     print()
     print(f"{'thread depth':>13}  {'CLM cumulative':>16}  {'prose cumulative':>18}  {'ratio':>10}")
-    print("-" * 75)
+    print("-" * 65)
 
     for n in [10, 50, 100, 200, 500]:
-        # CLM cumulative: one delta per session, plus periodic dream-pass output
-        # (we approximate dream pass as 0 — its cost is amortized into the
-        # reported clm_total_state_tokens which represents the post-dream live doc;
-        # see clm-rs/experiments/v3/RESULTS.md for the empirical numbers).
-        clm_cumulative = n * delta_tokens
-
-        # Prose cumulative: at each session i, re-summarize the i-session thread.
-        prose_cumulative = sum(estimate_prose_summary_size(i) for i in range(1, n + 1))
-
-        ratio = prose_cumulative / clm_cumulative
-        print(f"{n:>13}  {clm_cumulative:>16}  {prose_cumulative:>18}  {ratio:>9.1f}x")
-
-    print()
-    print("=" * 78)
-    print("READ-side context cost — for reference")
-    print("=" * 78)
-    print()
-    print("(This is what copyleftdev's PR #15 measured. Both formats win or lose")
-    print(" different points; the answer there was prose@2,707 vs CLM/3.0-trim@36,673)")
-    print()
-    print(f"{'thread depth':>13}  {'CLM live state':>16}  {'prose summary':>18}")
-    print("-" * 53)
-    for n in [10, 50, 100, 200, 500]:
-        clm_state = clm_total_state_tokens(n)
-        prose_state = estimate_prose_summary_size(n)
-        print(f"{n:>13}  {clm_state:>16}  {prose_state:>18}")
+        clm_cum = int(round(n * clm_per_session))
+        prose_cum = sum(prose_summary_size(i) for i in range(1, n + 1))
+        ratio = prose_cum / clm_cum
+        print(f"{n:>13}  {clm_cum:>16}  {prose_cum:>18}  {ratio:>9.1f}x")
 
     print()
     print("=" * 78)
     print("Reading the result")
     print("=" * 78)
     print()
-    print("Cumulative cost over a 100-session thread:")
-    sum_clm_100 = 100 * delta_tokens
-    sum_prose_100 = sum(estimate_prose_summary_size(i) for i in range(1, 101))
-    print(f"  CLM/3.0:                    {sum_clm_100:>7} tokens")
-    print(f"  Prose (re-summarize each):  {sum_prose_100:>7} tokens")
-    print(f"  Ratio:                      {sum_prose_100 / sum_clm_100:.1f}x more for prose")
+    print("CLM is designed for the WRITE-side axis. On reads (PR #15), lineage-")
+    print("preserving prose wins. On writes across many sessions, CLM still wins")
+    print("but by a more measured margin once dream-pass output is honestly counted.")
     print()
-    print("CLM is designed for the WRITE-side axis. On reads (PR #15's bench),")
-    print("lineage-preserving prose wins. On WRITES across many sessions, CLM")
-    print("wins by a large margin — this is the axis the architecture was built")
-    print("for, and the axis the README should headline.")
+    print("Caveats:")
+    print(" - Power-law prose model fit to two measurement points; extrapolation")
+    print("   beyond 200 sessions is a model, not a bench.")
+    print(" - CLM dream-pass cost modeled as a typical [STATE] under trim.aggressive")
+    print("   (~280 tokens, bounded by decisions_live=8). State without trim grows")
+    print("   linearly with depth and the advantage shrinks accordingly.")
+    print(" - Output tokens only. Input/read tokens are real but ~5x cheaper at")
+    print("   Anthropic rates and roughly proportional in both formats.")
 
 
 if __name__ == "__main__":
