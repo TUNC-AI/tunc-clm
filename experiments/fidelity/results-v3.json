@@ -1,0 +1,989 @@
+{
+  "models": {
+    "answerer": "claude-sonnet-4-6",
+    "summarizer": "claude-sonnet-4-6",
+    "tokenizer": "claude-opus-4-5"
+  },
+  "questions": [
+    {
+      "id": 1,
+      "category": "fact",
+      "q": "What package was the auth middleware extracted into?",
+      "any_of": [
+        "internal/auth"
+      ]
+    },
+    {
+      "id": 2,
+      "category": "fact",
+      "q": "What was AuthCheck renamed to?",
+      "any_of": [
+        "requireauth"
+      ]
+    },
+    {
+      "id": 3,
+      "category": "fact",
+      "q": "What is the final ship version?",
+      "any_of": [
+        "v0.4.0",
+        "0.4.0"
+      ]
+    },
+    {
+      "id": 4,
+      "category": "lineage",
+      "q": "Which model first proposed renaming AuthCheck to RequireAuth (model identifier or family)?",
+      "any_of": [
+        "snt4.6",
+        "sonnet 4.6",
+        "cld.snt4.6",
+        "session 1",
+        "session.1"
+      ]
+    },
+    {
+      "id": 5,
+      "category": "lineage",
+      "q": "In which session was the legacy session-cookie path first preserved?",
+      "any_of": [
+        "session 3",
+        "session.3",
+        "session-3",
+        "snt4.5",
+        "sonnet 4.5"
+      ]
+    },
+    {
+      "id": 6,
+      "category": "lineage",
+      "q": "Who diagnosed the CI flake (model identifier or family)?",
+      "any_of": [
+        "gem.2.5",
+        "gemini",
+        "session 5",
+        "session.5"
+      ]
+    },
+    {
+      "id": 7,
+      "category": "lineage",
+      "q": "Who caught the CI flake (the session that first reported it)?",
+      "any_of": [
+        "cdx.5.4",
+        "codex",
+        "session 4",
+        "session.4"
+      ]
+    },
+    {
+      "id": 8,
+      "category": "evolution",
+      "q": "Was the legacy session-cookie path eventually deleted? If so, in which session and why?",
+      "any_of": [
+        "session 6",
+        "session.6",
+        "deleted",
+        "removed",
+        "ordering bug",
+        "build tag"
+      ]
+    },
+    {
+      "id": 9,
+      "category": "evolution",
+      "q": "Which decision reverted decision d4?",
+      "any_of": [
+        "d7",
+        "decision 7",
+        "reverted d4",
+        "session 6"
+      ]
+    },
+    {
+      "id": 10,
+      "category": "evolution",
+      "q": "Was the rate limiter included in the original scope of the refactor? Explain.",
+      "any_of": [
+        "no",
+        "out of scope",
+        "out-of-scope",
+        "d3",
+        "deferred",
+        "later",
+        "session 8",
+        "new package"
+      ]
+    },
+    {
+      "id": 11,
+      "category": "evolution",
+      "q": "How did the rate limiter eventually return to the codebase, and as part of which decision?",
+      "any_of": [
+        "d8",
+        "decision 8",
+        "internal/ratelimit",
+        "new package",
+        "session 8",
+        "lla.4",
+        "llama"
+      ]
+    },
+    {
+      "id": 12,
+      "category": "lineage",
+      "q": "Who introduced middleware composition via Chain(...)?",
+      "any_of": [
+        "kmi.k2",
+        "kimi",
+        "session 9",
+        "session.9"
+      ]
+    },
+    {
+      "id": 13,
+      "category": "cross_model",
+      "q": "How many distinct AI families contributed across the thread?",
+      "any_of": [
+        "four",
+        " 4 ",
+        " 4.",
+        "4 families",
+        "claude, codex",
+        "cld, cdx, gem, lla, kmi",
+        "five"
+      ]
+    },
+    {
+      "id": 14,
+      "category": "cross_model",
+      "q": "Name the non-Claude family prefixes that appear in the thread.",
+      "any_of": [
+        "cdx",
+        "codex",
+        "gem",
+        "gemini",
+        "lla",
+        "llama",
+        "kmi",
+        "kimi"
+      ]
+    },
+    {
+      "id": 15,
+      "category": "lineage",
+      "q": "Was a dream pass run on this thread? If so, when, by whom, and over which sessions?",
+      "any_of": [
+        "dream",
+        "consolidated",
+        "ops4.7",
+        "2026-04-23",
+        "sessions 1-5",
+        "session 1-5",
+        "1-5"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "variant": "raw-append-50",
+      "chars": 15339,
+      "tokens": 6819,
+      "gzip_bytes": 3334,
+      "correct": 10,
+      "total": 15,
+      "per_question": [
+        {
+          "id": 1,
+          "category": "fact",
+          "ok": true,
+          "answer": "internal/auth/middleware.go"
+        },
+        {
+          "id": 2,
+          "category": "fact",
+          "ok": true,
+          "answer": "RequireAuth"
+        },
+        {
+          "id": 3,
+          "category": "fact",
+          "ok": false,
+          "answer": "v0.7.0"
+        },
+        {
+          "id": 4,
+          "category": "lineage",
+          "ok": false,
+          "answer": "CLd.Ops4.6"
+        },
+        {
+          "id": 5,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Session 4"
+        },
+        {
+          "id": 6,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Cdx.5.4"
+        },
+        {
+          "id": 7,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Cdx.5.4 (session 5)"
+        },
+        {
+          "id": 8,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Yes, session 7 by GPT.5.4, under a build tag"
+        },
+        {
+          "id": 9,
+          "category": "evolution",
+          "ok": true,
+          "answer": "d7"
+        },
+        {
+          "id": 10,
+          "category": "evolution",
+          "ok": true,
+          "answer": "No; it was explicitly marked out-of-scope in session 3"
+        },
+        {
+          "id": 11,
+          "category": "evolution",
+          "ok": true,
+          "answer": "As a new package internal/ratelimit, via decision d8"
+        },
+        {
+          "id": 12,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Lla.4"
+        },
+        {
+          "id": 13,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Five"
+        },
+        {
+          "id": 14,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Cdx, GPT, Gem, Lla, Kmi"
+        },
+        {
+          "id": 15,
+          "category": "lineage",
+          "ok": true,
+          "answer": "No; archive.mode is none (raw), no dream pass run"
+        }
+      ]
+    },
+    {
+      "variant": "raw-append-200",
+      "chars": 63117,
+      "tokens": 27967,
+      "gzip_bytes": 7670,
+      "correct": 11,
+      "total": 15,
+      "per_question": [
+        {
+          "id": 1,
+          "category": "fact",
+          "ok": true,
+          "answer": "internal/auth/middleware.go"
+        },
+        {
+          "id": 2,
+          "category": "fact",
+          "ok": true,
+          "answer": "RequireAuth"
+        },
+        {
+          "id": 3,
+          "category": "fact",
+          "ok": false,
+          "answer": "v0.7.0"
+        },
+        {
+          "id": 4,
+          "category": "lineage",
+          "ok": false,
+          "answer": "CLd.Ops4.6"
+        },
+        {
+          "id": 5,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Session 4"
+        },
+        {
+          "id": 6,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Cdx.5.4"
+        },
+        {
+          "id": 7,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Cdx.5.4 (session 5)"
+        },
+        {
+          "id": 8,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Yes; session 7 (d7), reverted d4 under build tag."
+        },
+        {
+          "id": 9,
+          "category": "evolution",
+          "ok": true,
+          "answer": "d7"
+        },
+        {
+          "id": 10,
+          "category": "evolution",
+          "ok": true,
+          "answer": "No; explicitly marked out-of-scope (d3)."
+        },
+        {
+          "id": 11,
+          "category": "evolution",
+          "ok": true,
+          "answer": "New package internal/ratelimit; decision d8 (superseded d3)."
+        },
+        {
+          "id": 12,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Lla.4 (session 9)"
+        },
+        {
+          "id": 13,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Five"
+        },
+        {
+          "id": 14,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Cdx, GPT, Gem, Lla, Kmi"
+        },
+        {
+          "id": 15,
+          "category": "lineage",
+          "ok": true,
+          "answer": "No dream pass was run."
+        }
+      ]
+    },
+    {
+      "variant": "dreamed-sibling-50-trim",
+      "chars": 20911,
+      "tokens": 9084,
+      "gzip_bytes": 4413,
+      "correct": 10,
+      "total": 15,
+      "per_question": [
+        {
+          "id": 1,
+          "category": "fact",
+          "ok": true,
+          "answer": "internal/auth/middleware.go"
+        },
+        {
+          "id": 2,
+          "category": "fact",
+          "ok": true,
+          "answer": "RequireAuth"
+        },
+        {
+          "id": 3,
+          "category": "fact",
+          "ok": false,
+          "answer": "v0.7.0"
+        },
+        {
+          "id": 4,
+          "category": "lineage",
+          "ok": false,
+          "answer": "CLd.Ops4.6"
+        },
+        {
+          "id": 5,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Session 4"
+        },
+        {
+          "id": 6,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Cdx.5.4-codex (session 6)"
+        },
+        {
+          "id": 7,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Cdx.5.4 (session 5)"
+        },
+        {
+          "id": 8,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Yes, session 7, to delete legacy session-cookie path under build tag."
+        },
+        {
+          "id": 9,
+          "category": "evolution",
+          "ok": true,
+          "answer": "d7"
+        },
+        {
+          "id": 10,
+          "category": "evolution",
+          "ok": true,
+          "answer": "No; d3 explicitly marked it out-of-scope."
+        },
+        {
+          "id": 11,
+          "category": "evolution",
+          "ok": true,
+          "answer": "New package internal/ratelimit, decision d8 (session 8)."
+        },
+        {
+          "id": 12,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Lla.4 (session 9)"
+        },
+        {
+          "id": 13,
+          "category": "cross_model",
+          "ok": false,
+          "answer": "Six (CLd, Cdx, GPT, Gem, Lla, Kmi)"
+        },
+        {
+          "id": 14,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Cdx, GPT, Gem, Lla, Kmi"
+        },
+        {
+          "id": 15,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Yes; nine passes by CLd.Ops4.7, sessions 1\u201345, ending 2026-06-05."
+        }
+      ]
+    },
+    {
+      "variant": "dreamed-sibling-200-trim",
+      "chars": 84159,
+      "tokens": 36673,
+      "gzip_bytes": 10669,
+      "correct": 10,
+      "total": 15,
+      "per_question": [
+        {
+          "id": 1,
+          "category": "fact",
+          "ok": true,
+          "answer": "internal/auth/middleware.go"
+        },
+        {
+          "id": 2,
+          "category": "fact",
+          "ok": true,
+          "answer": "RequireAuth"
+        },
+        {
+          "id": 3,
+          "category": "fact",
+          "ok": false,
+          "answer": "v0.7.0"
+        },
+        {
+          "id": 4,
+          "category": "lineage",
+          "ok": false,
+          "answer": "CLd.Ops4.6 (session 2)"
+        },
+        {
+          "id": 5,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Session 4"
+        },
+        {
+          "id": 6,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Cdx.5.4-codex (session 6)"
+        },
+        {
+          "id": 7,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Cdx.5.4 (session 5)"
+        },
+        {
+          "id": 8,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Yes; session 7; to remove legacy path under a build tag"
+        },
+        {
+          "id": 9,
+          "category": "evolution",
+          "ok": true,
+          "answer": "d7"
+        },
+        {
+          "id": 10,
+          "category": "evolution",
+          "ok": true,
+          "answer": "No; d3 declared rate-limiter out-of-scope"
+        },
+        {
+          "id": 11,
+          "category": "evolution",
+          "ok": true,
+          "answer": "New package internal/ratelimit; decision d8"
+        },
+        {
+          "id": 12,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Lla.4 (session 9)"
+        },
+        {
+          "id": 13,
+          "category": "cross_model",
+          "ok": false,
+          "answer": "Six (CLd, Cdx, GPT, Gem, Lla, Kmi)"
+        },
+        {
+          "id": 14,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Cdx, GPT, Gem, Lla, Kmi"
+        },
+        {
+          "id": 15,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Yes; 39 passes by CLd.Ops4.7; last over sessions 191\u2013195 on 2026-11-05"
+        }
+      ]
+    },
+    {
+      "variant": "prose-summary-50",
+      "chars": 1521,
+      "tokens": 479,
+      "gzip_bytes": 925,
+      "correct": 3,
+      "total": 15,
+      "per_question": [
+        {
+          "id": 1,
+          "category": "fact",
+          "ok": true,
+          "answer": "`internal/auth/`"
+        },
+        {
+          "id": 2,
+          "category": "fact",
+          "ok": true,
+          "answer": "`RequireAuth`"
+        },
+        {
+          "id": 3,
+          "category": "fact",
+          "ok": false,
+          "answer": "v0.7.0"
+        },
+        {
+          "id": 4,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 5,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 6,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 7,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 8,
+          "category": "evolution",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 9,
+          "category": "evolution",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 10,
+          "category": "evolution",
+          "ok": true,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 11,
+          "category": "evolution",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 12,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 13,
+          "category": "cross_model",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 14,
+          "category": "cross_model",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 15,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        }
+      ]
+    },
+    {
+      "variant": "prose-summary-200",
+      "chars": 5290,
+      "tokens": 1575,
+      "gzip_bytes": 1175,
+      "correct": 4,
+      "total": 15,
+      "per_question": [
+        {
+          "id": 1,
+          "category": "fact",
+          "ok": true,
+          "answer": "`internal/auth/`"
+        },
+        {
+          "id": 2,
+          "category": "fact",
+          "ok": true,
+          "answer": "`RequireAuth`"
+        },
+        {
+          "id": 3,
+          "category": "fact",
+          "ok": false,
+          "answer": "v0.7.0"
+        },
+        {
+          "id": 4,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 5,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 6,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 7,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 8,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Yes; session unknown; traced to a test-fixture ordering bug"
+        },
+        {
+          "id": 9,
+          "category": "evolution",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 10,
+          "category": "evolution",
+          "ok": true,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 11,
+          "category": "evolution",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 12,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 13,
+          "category": "cross_model",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 14,
+          "category": "cross_model",
+          "ok": false,
+          "answer": "UNKNOWN"
+        },
+        {
+          "id": 15,
+          "category": "lineage",
+          "ok": false,
+          "answer": "UNKNOWN"
+        }
+      ]
+    },
+    {
+      "variant": "prose-50-lineage",
+      "chars": 2412,
+      "tokens": 1007,
+      "gzip_bytes": 1153,
+      "correct": 8,
+      "total": 15,
+      "per_question": [
+        {
+          "id": 1,
+          "category": "fact",
+          "ok": true,
+          "answer": "`internal/auth/middleware.go`"
+        },
+        {
+          "id": 2,
+          "category": "fact",
+          "ok": true,
+          "answer": "`RequireAuth`"
+        },
+        {
+          "id": 3,
+          "category": "fact",
+          "ok": false,
+          "answer": "v0.6.1 (last listed; document cuts off at v0.7.0)"
+        },
+        {
+          "id": 4,
+          "category": "lineage",
+          "ok": false,
+          "answer": "CLd.Ops4.6"
+        },
+        {
+          "id": 5,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Session 4"
+        },
+        {
+          "id": 6,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Cdx.5.4"
+        },
+        {
+          "id": 7,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Session 5 (Cdx.5.4)"
+        },
+        {
+          "id": 8,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Yes, session 7 by GPT.5.4, under a build tag"
+        },
+        {
+          "id": 9,
+          "category": "evolution",
+          "ok": false,
+          "answer": "Session 7 (GPT.5.4)"
+        },
+        {
+          "id": 10,
+          "category": "evolution",
+          "ok": true,
+          "answer": "No; rate-limiter refactor was declared out-of-scope (d3)"
+        },
+        {
+          "id": 11,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Gem.2.5 placed it in `internal/ratelimit`, superseding d3"
+        },
+        {
+          "id": 12,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Lla.4"
+        },
+        {
+          "id": 13,
+          "category": "cross_model",
+          "ok": false,
+          "answer": "5 (but document lists 6 families including Kimi)"
+        },
+        {
+          "id": 14,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Codex, GPT, Gemini, Llama, Kimi"
+        },
+        {
+          "id": 15,
+          "category": "lineage",
+          "ok": true,
+          "answer": "No; document states no dream sessions recorded"
+        }
+      ]
+    },
+    {
+      "variant": "prose-200-lineage",
+      "chars": 6953,
+      "tokens": 2707,
+      "gzip_bytes": 3039,
+      "correct": 11,
+      "total": 15,
+      "per_question": [
+        {
+          "id": 1,
+          "category": "fact",
+          "ok": true,
+          "answer": "`internal/auth/middleware.go`"
+        },
+        {
+          "id": 2,
+          "category": "fact",
+          "ok": true,
+          "answer": "`RequireAuth`"
+        },
+        {
+          "id": 3,
+          "category": "fact",
+          "ok": false,
+          "answer": "v0.7.0"
+        },
+        {
+          "id": 4,
+          "category": "lineage",
+          "ok": false,
+          "answer": "CLd.Ops4.6"
+        },
+        {
+          "id": 5,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Session 4"
+        },
+        {
+          "id": 6,
+          "category": "lineage",
+          "ok": false,
+          "answer": "Cdx.5.4-codex"
+        },
+        {
+          "id": 7,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Cdx.5.4 (session 5)"
+        },
+        {
+          "id": 8,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Yes, session 7, deleted under a build tag by GPT.5.4"
+        },
+        {
+          "id": 9,
+          "category": "evolution",
+          "ok": true,
+          "answer": "d7"
+        },
+        {
+          "id": 10,
+          "category": "evolution",
+          "ok": true,
+          "answer": "No; session 3 (CLd.Snt4.5) declared it out-of-scope"
+        },
+        {
+          "id": 11,
+          "category": "evolution",
+          "ok": true,
+          "answer": "Gem.2.5 moved it to `internal/ratelimit` in session 8, decision d8"
+        },
+        {
+          "id": 12,
+          "category": "lineage",
+          "ok": true,
+          "answer": "Lla.4 (session 9)"
+        },
+        {
+          "id": 13,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Five"
+        },
+        {
+          "id": 14,
+          "category": "cross_model",
+          "ok": true,
+          "answer": "Codex, GPT, Gemini, Llama, Kimi"
+        },
+        {
+          "id": 15,
+          "category": "lineage",
+          "ok": true,
+          "answer": "No dream pass was run; archive mode is none (raw)"
+        }
+      ]
+    }
+  ]
+}
