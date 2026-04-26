@@ -111,15 +111,18 @@ def prose_summary_size(n_sessions: int) -> int:
         N=50  → 1,007 tokens
         N=200 → 2,707 tokens
 
-    Solving log(2707/1007) = p × log(200/50) gives p ≈ 0.713.
-    Then a × 50^0.713 = 1007 ⇒ a ≈ 53.2.
+    Solving log(2707/1007) = p × log(200/50) gives p ≈ 0.7133.
+    Then a × 50^0.7133 = 1007 ⇒ a ≈ 61.82.
 
-    Verifies: 53.2 × 50^0.713  ≈ 1,007  ✓
-              53.2 × 200^0.713 ≈ 2,704  ✓ (within 0.1% of measured)
+    Verifies: 61.82 × 50^0.7133  = 1,007 (matches measurement exactly)
+              61.82 × 200^0.7133 = 2,707 (matches measurement exactly)
+
+    Codex PR-16 round-2 P1 caught: a previous version had a = 53.2 which
+    produced 866 at N=50 (vs measured 1,007) — the constant was wrong.
     """
     if n_sessions <= 0:
         return 0
-    return int(round(53.2 * (n_sessions ** 0.713)))
+    return int(round(61.82 * (n_sessions ** 0.7133)))
 
 
 # ---- main ----
@@ -151,11 +154,13 @@ def main() -> None:
     print(f"  -> dream pass output:         {dream_pass_output:>4} tokens (rewrite [STATE] + new DREAM.LOG + dream-signing roll-call line)")
     print()
 
-    # CLM per-session amortized cost: every session pays delta + roll-call;
-    # every 5th session additionally pays the dream-pass output.
-    clm_per_session = delta_tokens + roll_call_tokens + (dream_pass_output / 5.0)
+    # CLM per-session amortized cost in the steady state: every session pays
+    # delta + roll-call; ~1-in-5 sessions additionally pay the dream-pass output.
+    # (Exact dream cadence handled in clm_cumulative below for finite-depth totals.)
+    per_session_basic = delta_tokens + roll_call_tokens  # delta + roll-call line
+    clm_per_session_steady = per_session_basic + (dream_pass_output / 5.0)
 
-    print(f"  CLM per-session amortized:    {clm_per_session:>6.1f} tokens")
+    print(f"  CLM per-session steady-state amortized:  {clm_per_session_steady:>6.1f} tokens")
     print(f"     = {delta_tokens} (delta) + {roll_call_tokens} (roll-call) + {dream_pass_output}/5 (amortized dream)")
     print()
 
@@ -168,25 +173,31 @@ def main() -> None:
 
     for n in [1, 5, 10, 25, 50, 100, 200, 500]:
         prose = prose_summary_size(n)
-        ratio = prose / clm_per_session
-        print(f"{n:>10}  {clm_per_session:>11.1f}  {prose:>15}  {ratio:>9.1f}x")
+        ratio = prose / clm_per_session_steady
+        print(f"{n:>10}  {clm_per_session_steady:>11.1f}  {prose:>15}  {ratio:>9.1f}x")
 
     print()
     print("=" * 78)
     print("Cumulative cost across the FULL thread up to session N")
     print("=" * 78)
     print()
-    print("Each session: CLM appends delta + roll-call (every 5th adds dream).")
-    print("Prose re-summarizes from scratch.")
+    print("Each session: CLM appends delta + roll-call. Dream passes occur on the")
+    print("schedule the canonical generator uses — at sessions 5, 10, 15, ... up to")
+    print("but not including the final batch (the last 1-5 sessions stay live).")
+    print("So at depth N, n_dreams = (N-1) // 5 — matches the v3 generator output.")
+    print("(Codex PR-16 round-2 P2 caught the previous version overcounted dreams.)")
     print()
-    print(f"{'thread depth':>13}  {'CLM cumulative':>16}  {'prose cumulative':>18}  {'ratio':>10}")
-    print("-" * 65)
+    print("Prose re-summarizes from scratch every session.")
+    print()
+    print(f"{'thread depth':>13}  {'n_dreams':>9}  {'CLM cumulative':>16}  {'prose cumulative':>18}  {'ratio':>10}")
+    print("-" * 75)
 
     for n in [10, 50, 100, 200, 500]:
-        clm_cum = int(round(n * clm_per_session))
+        n_dreams = (n - 1) // 5  # matches gen_50_session.py cadence
+        clm_cum = n * per_session_basic + n_dreams * dream_pass_output
         prose_cum = sum(prose_summary_size(i) for i in range(1, n + 1))
         ratio = prose_cum / clm_cum
-        print(f"{n:>13}  {clm_cum:>16}  {prose_cum:>18}  {ratio:>9.1f}x")
+        print(f"{n:>13}  {n_dreams:>9}  {clm_cum:>16}  {prose_cum:>18}  {ratio:>9.1f}x")
 
     print()
     print("=" * 78)

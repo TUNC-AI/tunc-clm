@@ -1,43 +1,45 @@
 # Compounding-cost bench — what CLM/3.0 is actually for
 
-**Verdict: on the write-side axis (tokens to UPDATE the doc as a thread accumulates), CLM/3.0 beats lineage-preserving prose by 4.7×–14.8× depending on thread depth. This is the axis the architecture was designed for. Copyleftdev's PR #15 bench measured a different axis (one-shot read retrieval) where lineage-preserving prose wins; both results are correct, they're testing different things.**
+**Verdict: on the write-side axis (tokens to UPDATE the doc as a thread accumulates), CLM/3.0 beats lineage-preserving prose by 1.5×–17.4× depending on thread depth. The advantage grows with depth: ~1.5× at 10 sessions, ~5.7× at 100, ~17.4× at 500. This is the axis the architecture was designed for. Copyleftdev's PR #15 bench measured a different axis (one-shot read retrieval) where lineage-preserving prose wins; both results are correct, they're testing different things.**
 
 ## What this bench tests
 
 Two formats, same canonical scenario: a thread that accumulates one new session at a time. The question: **how many tokens does each format spend per update**?
 
-- **CLM/3.0**: each new session writes one `[DELTA.session-N]` block (~60 tokens) plus a `[ROLL.CALL]` line (~50 tokens). Every 5th session additionally runs a dream pass — rewrites the `[STATE]` block (bounded under `trim.mode: aggressive` by `decisions_live=8`, ~210 tokens), appends a `[DREAM.LOG]` entry (~30 tokens), and signs a roll-call line (~50 tokens) for the dream signer. Amortized: **~176 tokens per session, constant in thread depth**.
+- **CLM/3.0**: each new session writes one `[DELTA.session-N]` block (~60 tokens) plus a `[ROLL.CALL]` line (~50 tokens). Dream passes happen at sessions 5, 10, 15, ... up to but not including the final batch (the last 1–5 sessions stay live as active deltas — matches the canonical generator). At depth N, total dreams = (N−1) // 5. Each dream rewrites the `[STATE]` block (bounded under `trim.mode: aggressive` by `decisions_live=8`, ~210 tokens), appends a `[DREAM.LOG]` entry (~30 tokens), and signs a roll-call line (~50 tokens) for the dream signer. Steady-state amortized: **~176 tokens per session, constant in thread depth**.
 
-- **Prose-with-good-prompt** (the variant that wins copyleftdev's PR #15 bench): each new session means re-summarizing the entire prior thread with the lineage-preserving prompt. Generation cost grows with thread depth as a power law. Calibrated to PR #15's two empirical points (N=50 → 1,007 tokens; N=200 → 2,707 tokens); fit gives **~53.2 × N^0.713 tokens per update**.
+- **Prose-with-good-prompt** (the variant that wins copyleftdev's PR #15 bench): each new session means re-summarizing the entire prior thread with the lineage-preserving prompt. Generation cost grows with thread depth as a power law. Calibrated to PR #15's two empirical points (N=50 → 1,007 tokens; N=200 → 2,707 tokens); fit gives **~61.82 × N^0.7133 tokens per update** (matches both points exactly).
 
 ## Numbers
 
 | session N | CLM update (constant) | prose summary (grows) | ratio (prose/CLM) |
 |---:|---:|---:|---:|
-| 1 | 176 | 53 | 0.3× |
-| 5 | 176 | 168 | 1.0× |
-| 10 | 176 | 275 | 1.6× |
-| 25 | 176 | 528 | 3.0× |
-| 50 | 176 | 866 | 4.9× |
-| 100 | 176 | 1,419 | 8.1× |
-| 200 | 176 | 2,326 | 13.2× |
-| 500 | 176 | 4,470 | 25.4× |
+| 1 | 176 | 62 | 0.4× |
+| 5 | 176 | 195 | 1.1× |
+| 10 | 176 | 320 | 1.8× |
+| 25 | 176 | 614 | 3.5× |
+| 50 | 176 | 1,007 | 5.7× |
+| 100 | 176 | 1,650 | 9.4× |
+| 200 | 176 | 2,707 | 15.4× |
+| 500 | 176 | 5,200 | 29.5× |
 
-CLM's per-session update cost is **constant**. Prose-with-good-prompt's per-session cost grows as N^0.713 (sub-linear because the summarizer paraphrases as content grows; matches Don's empirical 50→200 ratio of ×2.69 for ×4 sessions).
+CLM's per-session update cost is **constant**. Prose-with-good-prompt's per-session cost grows as N^0.7133 (sub-linear because the summarizer paraphrases as content grows; matches Don's empirical 50→200 ratio of ×2.69 for ×4 sessions).
 
 The crossover point is around 5 sessions — below that, prose is cheaper per-update. Above, CLM is cheaper, with the gap widening as the thread grows.
 
 ### Cumulative cost across the full thread up to session N
 
-| thread depth | CLM cumulative | prose cumulative | ratio |
-|---:|---:|---:|---:|
-| 10 | 1,762 | 1,735 | 1.0× |
-| 50 | 8,810 | 25,689 | 2.9× |
-| 100 | 17,620 | 83,528 | **4.7×** |
-| 200 | 35,240 | 272,685 | **7.7×** |
-| 500 | 88,100 | 1,306,854 | **14.8×** |
+| thread depth | n_dreams | CLM cumulative | prose cumulative | ratio |
+|---:|---:|---:|---:|---:|
+| 10 | 1 | 1,316 | 2,016 | 1.5× |
+| 50 | 9 | 8,364 | 29,882 | 3.6× |
+| 100 | 19 | 17,174 | 97,179 | **5.7×** |
+| 200 | 39 | 34,794 | 317,326 | **9.1×** |
+| 500 | 99 | 87,654 | 1,521,199 | **17.4×** |
 
-This is **constant-per-update vs sub-linear-per-update** scaling. Prose's cumulative cost grows as the integral of N^0.713, which is N^1.713 — super-linear. CLM grows linearly in N. That's the architectural advantage on this axis.
+This is **constant-per-update vs sub-linear-per-update** scaling. Prose's cumulative cost grows as the integral of N^0.7133, which is N^1.7133 — super-linear. CLM grows linearly in N. That's the architectural advantage on this axis.
+
+(Dream cadence matches the canonical `gen_50_session.py` schedule: dreams at sessions 5, 10, 15, … excluding the final batch. n_dreams = (N−1) // 5.)
 
 ## Why this is the right axis
 
@@ -59,7 +61,7 @@ All three are read-side benches. They measure: *"given the doc, can a fresh AI r
 
 CLM doesn't compete on that axis. The architecture was never designed to win one-shot read retrieval. It was designed to be a stateful append-only data structure with a defined update protocol, parser-validated structure, ritual-bound author preservation, and bounded amortized write cost.
 
-This bench tests that — and the architecture wins by 4.7× at 100 sessions and 14.8× at 500.
+This bench tests that — and the architecture wins by 5.7× at 100 sessions and 17.4× at 500.
 
 ## What this bench does NOT test
 
@@ -90,7 +92,7 @@ CLM/3.0 has **four properties** worth distinguishing:
 
 1. **Read retrieval** (one-shot Q&A from static doc) — **dominated by lineage-preserving prose at every depth.** Don't headline this.
 
-2. **Write cost** (tokens to add the next session) — **CLM wins by 4.7× at 100 sessions, scaling to 14.8× at 500** (with caveats). This is what compounding_cost.py measures.
+2. **Write cost** (tokens to add the next session) — **CLM wins by 5.7× at 100 sessions, scaling to 17.4× at 500** (with caveats). This is what compounding_cost.py measures.
 
 3. **Audit integrity** (verbatim preservation, ritual, signed deltas) — **architecturally unique to CLM.** Not benched here; would need separate measurement.
 
@@ -98,4 +100,4 @@ CLM/3.0 has **four properties** worth distinguishing:
 
 The README has been overweighting axis 1 and underweighting axes 2/3/4. After this bench, the corrected positioning is: *CLM/3.0 is a write-ahead log for AI handoff threads. It wins on cumulative write cost (modestly), audit integrity (by construction), and validation tooling (uniquely). It does not compete with prose summarization for one-shot read retrieval.*
 
-— *Bench by CLd.Ops4.7, 2026-04-26, in response to copyleftdev's PR #15. Companion to RESULTS-fidelity-v3.md, not a refutation of it. Both results stand; they measure different things. v0.2 of the bench addresses Codex PR-16 round-1 review (P1: dream-pass output now counted; P2: prose model now power-law-calibrated to PR #15 empirical points).*
+— *Bench by CLd.Ops4.7, 2026-04-26, in response to copyleftdev's PR #15. Companion to RESULTS-fidelity-v3.md, not a refutation of it. Both results stand; they measure different things. Two rounds of Codex review applied: round-1 added dream-pass output cost; round-2 corrected the prose power-law constant (53.2 → 61.82) and the dream cadence formula (now matches canonical gen_50_session.py: n_dreams = (N−1) // 5).*

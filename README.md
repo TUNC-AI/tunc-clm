@@ -30,22 +30,23 @@ CLM/3.0 has **four axes**. We've benchmarked each. The honest results:
 
 If you give a fresh AI a CLM doc and ask 11 lineage questions, lineage-preserving prose at 2,707 tokens scores 11/11 vs CLM/3.0-trim at 36,673 tokens scoring 10/11. **Don't pick CLM for one-shot retrieval.** Bench: [`experiments/fidelity/RESULTS-fidelity-v3.md`](experiments/fidelity/RESULTS-fidelity-v3.md), run by [@copyleftdev](https://github.com/copyleftdev) in [#15](https://github.com/TUNC-AI/tunc-clm/pull/15).
 
-### Axis 2 — Write cost (tokens to update across many appended sessions) — **CLM wins by 4.7×–14.8×**
+### Axis 2 — Write cost (tokens to update across many appended sessions) — **CLM wins by 1.5×–17.4×**
 
 Each session that adds to the thread:
-- **CLM**: appends one `[DELTA.session-N]` block (~60 tokens) + `[ROLL.CALL]` line (~50). Every 5th session also runs a dream pass that rewrites bounded `[STATE]` (~210 under `trim.aggressive`) and appends a `[DREAM.LOG]` entry. **Amortized ~176 tokens per session, constant in thread depth.**
-- **Prose-with-good-prompt** (the variant that wins axis 1): re-summarize the entire prior thread. Per-session cost grows as ~`53.2 × N^0.713` tokens (power-law fit to PR #15's empirical points: N=50→1,007 and N=200→2,707).
+- **CLM**: appends one `[DELTA.session-N]` block (~60 tokens) + `[ROLL.CALL]` line (~50). Dream passes at sessions 5, 10, 15, ... rewrite bounded `[STATE]` (~210 under `trim.aggressive`) and append a `[DREAM.LOG]` entry. **Amortized ~176 tokens per session, constant in thread depth.**
+- **Prose-with-good-prompt** (the variant that wins axis 1): re-summarize the entire prior thread. Per-session cost grows as ~`61.82 × N^0.7133` tokens (power-law fit to PR #15's empirical points: N=50→1,007 and N=200→2,707, matches both exactly).
 
 Cumulative cost over a thread:
 
 | thread depth | CLM cumulative | prose cumulative | ratio |
 |---:|---:|---:|---:|
-| 50 sessions | 8,810 | 25,689 | 2.9× |
-| **100 sessions** | **17,620** | **83,528** | **4.7×** |
-| 200 sessions | 35,240 | 272,685 | 7.7× |
-| 500 sessions | 88,100 | 1,306,854 | **14.8×** |
+| 10 sessions | 1,316 | 2,016 | 1.5× |
+| 50 sessions | 8,364 | 29,882 | 3.6× |
+| **100 sessions** | **17,174** | **97,179** | **5.7×** |
+| 200 sessions | 34,794 | 317,326 | 9.1× |
+| 500 sessions | 87,654 | 1,521,199 | **17.4×** |
 
-Constant-per-update vs sub-linear-per-update; cumulatively, linear vs N^1.713. **This is the axis the architecture was designed to win.** Bench: [`experiments/v3/RESULTS-compounding-cost.md`](experiments/v3/RESULTS-compounding-cost.md), reproducible offline (no API needed).
+Constant-per-update vs sub-linear-per-update; cumulatively, linear vs N^1.7133. **This is the axis the architecture was designed to win.** Bench: [`experiments/v3/RESULTS-compounding-cost.md`](experiments/v3/RESULTS-compounding-cost.md), reproducible offline (no API needed).
 
 ### Axis 3 — Audit integrity (verbatim preservation, ritual, signed deltas) — **architecturally unique to CLM**
 

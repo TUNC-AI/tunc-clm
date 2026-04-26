@@ -30,7 +30,7 @@ clm validate path/to/file.clm
 CLM/3.0 is a **write-ahead log for multi-session AI handoff threads**. Four axes; this package implements two of them:
 
 1. **Read retrieval** — prose summary wins this axis; don't pick CLM for one-shot Q&A.
-2. **Write cost** — CLM wins by 14.7× over 100 sessions, 60× over 500. (See [`experiments/v3/RESULTS-compounding-cost.md`](https://github.com/TUNC-AI/tunc-clm/blob/main/experiments/v3/RESULTS-compounding-cost.md).)
+2. **Write cost** — CLM wins by 5.7× at 100 sessions, 17.4× at 500. (See [`experiments/v3/RESULTS-compounding-cost.md`](https://github.com/TUNC-AI/tunc-clm/blob/main/experiments/v3/RESULTS-compounding-cost.md).)
 3. **Audit integrity** — verbatim preservation, signed deltas. CLM by ritual.
 4. **Tooling** — parser round-trip + validator. **This package implements axes 3 and 4** in Python; the Rust and TypeScript packages do the same.
 
