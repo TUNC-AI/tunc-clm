@@ -1,6 +1,6 @@
-# Lineage fidelity v3 — empirical falsification of CLM/3.0's last claim
+# Lineage fidelity v3 — running the QA gene proposed, with the missing baseline
 
-**Verdict: CLM/3.0 with `trim.mode: aggressive` is strictly dominated by lineage-preserving prose on the lineage QA gene himself authored. Prose at 2,707 tokens scores 11/11 on the answerable questions; CLM/3.0-trim at 36,673 tokens scores 10/11. The lineage-and-audit claim fails the same way the compression claim failed in PR #4.**
+**Verdict: once a lineage-preserving prose baseline is added, CLM/3.0 with `trim.mode: aggressive` is dominated on the Pareto frontier of `experiments/v3/lineage_qa.json`. Prose at 2,707 tokens scores 11/11 on the answerable questions; CLM/3.0-trim at 36,673 tokens scores 10/11. Same shape of result as PR #4: the structured format isn't on the frontier once the prose baseline is generated with a prompt that knows what to keep.**
 
 This experiment runs `experiments/v3/lineage_qa.json` against the v3 artifacts using the same harness methodology as PR #4 (`experiments/fidelity/frontier.py`): single trial, `claude-sonnet-4-6` for both summarize and answer, substring scoring, manual miss classification.
 
@@ -19,7 +19,7 @@ Eight variants of the auth-evolution thread:
 | **prose-50-lineage** | new — prose summary with explicit lineage-preservation prompt, ~800 token budget |
 | **prose-200-lineage** | new — prose summary with explicit lineage-preservation prompt, ~2,500 token budget |
 
-**The new baseline is the move PR #4 depended on and gene's bench omitted.** Gene's `prose-summary-*.md` files were generated with a generic summarization prompt that drops session/model attribution. That makes the lineage-QA result preordained: prose loses lineage because the summarizer was never asked to keep it. The fair comparison generates the prose summary with a prompt that explicitly preserves "session N (model X) decided Y" attribution — same Claude, same input, same per-token cost, just a smarter prompt. If lineage-preserving prose at modest budgets matches CLM's lineage fidelity, the format isn't winning on lineage; the *prompt* is.
+**Why the new baseline matters.** The existing `prose-summary-*.md` files were generated with a generic summarization prompt that doesn't ask the summarizer to keep session/model attribution. Run the lineage QA against that and the result is preordained — prose drops lineage because the summarizer was never asked to keep it. PR #4 made the analogous move on the v2 fidelity bench (Claude-summarized prose at multiple token budgets) and that's what produced the Pareto frontier there. The fair comparison here generates the prose summary with a prompt that explicitly preserves "session N (model X) decided Y" — same Claude, same input, same per-token cost, just a more specific prompt. The question this baseline lets us answer cleanly: is the lineage win a property of the *format*, or of *what the summarizer is asked to keep*?
 
 ## Raw results
 
@@ -36,7 +36,7 @@ prose-50-lineage                   1,007    8/15 (53%)   fact:2/3 lineage:2/6 ev
 prose-200-lineage                  2,707   11/15 (73%)   fact:2/3 lineage:3/6 evolution:4/4 cross_model:2/2
 ```
 
-Gene's predicted scores in `experiments/v3/RESULTS.md` were "CLM/3.0 sibling: 15/15 (100%); raw append: 15/15; CLM/3.0 inline-archive: 15/15; prose summary: ~3/15 (~20%)." Actual on plain prose (3/15, 4/15) lines up with his prediction. Actual on CLM/3.0 sibling (10/15) does not — he's off by 5 questions even with the entire archive concatenated into the prompt.
+Gene's predicted scores in `experiments/v3/RESULTS.md` were "CLM/3.0 sibling: 15/15 (100%); raw append: 15/15; CLM/3.0 inline-archive: 15/15; prose summary: ~3/15 (~20%)." The plain-prose prediction (3/15, 4/15) matches reality. The CLM/3.0 sibling prediction does not: actual is 10/15 with live + archive concatenated. Most of the 5-question gap is methodology (see Issue 1 below) — but the gap remains after adjustment, and it's the same gap raw-append shows.
 
 ## Methodology issues found
 
@@ -100,25 +100,25 @@ fidelity adj
     prose-200-lineage       (2,707, 11/11)   ← strictly dominates raw-append-200, raw-append-50, CLM-50t, CLM-200t
 ```
 
-**CLM/3.0-trim at 200 sessions is dominated by raw-append at 50 sessions.** 36,673 tokens of structured audit thread scores 10/11; 6,819 tokens of raw concatenation scores 10/11. The structure is not earning its keep — the model finds lineage facts in raw-append just as well as in `[ROLL.CALL]` + `[DELTA.session-N]`.
+A few specific observations on the frontier:
 
-**CLM/3.0-trim at 50 sessions is dominated by raw-append at 50 sessions.** Same fidelity, more tokens. The trim machinery is paying overhead (the `[STATE]` consolidation, `[DREAM.LOG]`, archive structure) without buying any retrieval advantage on these questions.
+- **CLM/3.0-trim at 200 sessions is dominated by raw-append at 50 sessions.** 36,673 tokens of structured audit thread scores 10/11; 6,819 tokens of raw concatenation scores 10/11. On these 11 questions, the model retrieves lineage facts from raw concatenation about as well as from `[ROLL.CALL]` + `[DELTA.session-N]` — the structural overhead isn't buying retrieval here.
+- **CLM/3.0-trim at 50 sessions is dominated by raw-append at 50 sessions.** Same fidelity, more tokens. The trim machinery (the `[STATE]` consolidation, `[DREAM.LOG]`, archive structure) is paying overhead the lineage retrieval doesn't recover.
+- **Lineage-preserving prose at 2,707 tokens dominates everything above it** — it scores 11/11, equal to raw-append-200 at 27,967 tokens, at 13.5× fewer tokens than CLM/3.0-trim at the same depth.
 
-**Lineage-preserving prose at 2,707 tokens dominates everything above 2,707 tokens** — it scores 11/11, the same as raw-append-200 at 27,967 tokens, while being 13.5× cheaper than CLM/3.0-trim at the same depth.
-
-## Verdict on gene's v3 claims
+## Reading this against the v3 claim
 
 **Claim from `experiments/v3/RESULTS.md`:** "Prose summary buys cheaper tokens by destroying [lineage / dream-pass / bounded live-doc properties]. CLM/3.0 keeps them, at a token premium that *decreases* relative to raw append as the thread grows."
 
-The first half is right about *gene's prose-summary baseline*, which used a generic prompt that did not preserve lineage. It is wrong about prose summarization in general. A one-paragraph change to the summarization prompt — "preserve session N + model attribution per decision" — recovers full lineage fidelity at 2,707 tokens. The lineage isn't a property of the *format*; it's a property of *what you ask the summarizer to keep*.
+The half about *the existing prose-summary baseline* is accurate — that baseline used a generic prompt and does drop lineage. The half about prose summarization in general is what this experiment lets us re-test. With a prompt that asks for session-and-model attribution, a 2,707-token summary recovers full lineage on these 11 questions. So the lineage that v3 preserves isn't unique to the format — it's recoverable by prose if the summarizer is asked to keep it.
 
-**The token premium is also negative, not just decreasing.** CLM/3.0-trim costs 13.5× more tokens than lineage-preserving prose for *worse* lineage recall on this benchmark.
+The token premium runs the other way on this bench too: CLM/3.0-trim costs 13.5× more tokens than lineage-preserving prose for one fewer correct answer. That's directional, not definitive — the bench has caveats below — but it's the opposite shape from the predicted direction.
 
-## What about the 200-session synthetic itself
+## A note on the 200-session synthetic
 
-Worth flagging: gene's "200-session" thread is the 50-session thread cycled four times with a `cycle-N` suffix. Phases 1-5 repeat verbatim as phases 6-10, 11-15, 16-20 — same auth extraction, same MFA audit, same Trail of Bits CVE, four times. This inflates raw-append's token count (the same content appears 4×) and makes `trim.mode: aggressive` look excellent (a deduplicating trim that knows phases repeat would cut hard). On a real 200-session thread with 200 distinct phases, the compression numbers reported in PR #13 would not reproduce — and neither would the lineage QA, because gene's questions only probe sessions 1-10 (cycle 1).
+Worth flagging because it shapes how this result generalizes. The "200-session" thread is the 50-session thread cycled four times with a `cycle-N` suffix — phases 1-5 repeat as phases 6-10, 11-15, 16-20, same auth extraction / MFA / Trail of Bits CVE, four times over. This inflates raw-append's token count (the same content appears 4×) and is friendly to `trim.mode: aggressive` because a trim policy that consolidates repeated phases gets a free win. On a 200-session thread with 200 genuinely distinct phases, the compression numbers reported in PR #13 wouldn't reproduce as cleanly, and the lineage QA can only probe sessions 1-10 (cycle 1).
 
-This isn't dispositive against CLM/3.0 — it's a comment on the bench shape. A real test would need a thread with ~50-200 genuinely distinct phases and a lineage QA spanning the full thread, not the first phase only.
+Not dispositive against CLM/3.0 — just a note on the bench shape. A non-cycled long thread with QA spanning the full depth would be a stronger test for both directions.
 
 ## What CLM/3.0 still uniquely delivers (residual claim)
 
@@ -147,14 +147,14 @@ ANTHROPIC_API_KEY=... python3 experiments/fidelity/frontier_v3.py
 
 Generates `prose-50-lineage.md` and `prose-200-lineage.md` if absent, then runs the 8-variant × 15-question eval and writes per-question detail to `results-v3.json`. Total cost on this run: 8 variants × 15 questions × ~1 LLM call each, plus 2 baseline summarizations. ~$3 in spend.
 
-## Recommendations
+## Suggestions for follow-up
 
-1. **Update `lineage_qa.json` to match the 50/200 data**, or regenerate the artifacts to match the QA. Right now neither the spec docs nor the bench tell the same story; future readers running `frontier_v3.py` against existing artifacts will hit the same "every variant fails Q3-Q6" issue.
+1. **Sync `lineage_qa.json` with the 50/200 artifacts** (or regenerate the artifacts to match the QA). Today they describe different threads, and any future run of `frontier_v3.py` will hit the same Q3-Q6 issue.
 
-2. **Drop the "compression with audit lineage" claim from the README.** It does not survive a fair comparison against lineage-preserving prose. The honest residual claim is "discipline and auditability for multi-session handoff threads via append-only ritual + parsed format" — exactly the framing PR #4 already arrived at.
+2. **Re-frame the README claim around what survives this bench.** The "compression with audit lineage at depth" framing depends on a comparison against generic-prompt prose; once a lineage-preserving prose baseline is included, it doesn't hold up here. The framing PR #4 settled on — "discipline and auditability for multi-session handoff threads via append-only ritual + parsed format" — is unfalsified by either bench and is the honest residual.
 
-3. **Generate a non-cycled long thread for the next bench.** The 50→200 cycling makes the synthetic data inadvertently friendly to trim-aware compression and to first-phase-only lineage QA. A 100-session thread with 100 distinct decisions (no phase repeats) is the test the architecture's claim deserves.
+3. **A non-cycled long thread for the next bench.** The 50→200 cycling makes the synthetic inadvertently friendly to trim-aware compression and limits the lineage QA to cycle 1. A 100-session thread with 100 distinct decisions would be the harder test in either direction — and might surface places where structured `[ROLL.CALL]` actually does beat prose at depth.
 
-4. **For real-world adoption, the prompt change is cheaper than the format change.** If you have a multi-session thread and you want lineage-preserving handoff, write a 200-word "preserve session N (model X) for each decision; preserve dream-pass attribution; preserve revert/supersede chains" prompt and summarize. You get 11/11 lineage at ~3K tokens. Adopting CLM/3.0 — new spec, new parsers, new validator, new trim modes — buys you nothing on this axis and costs 13.5× more tokens.
+4. **For practitioners reading this:** if you want lineage-preserving handoff today, the cheapest move on this evidence is a more specific summarization prompt — "preserve session N (model X) for each decision; preserve dream-pass attribution; preserve revert/supersede chains" — rather than adopting a new format. CLM/3.0 might still be worth adopting for the auditability and ritual properties (which this bench doesn't test); on tokens × lineage it doesn't carry its weight on this benchmark.
 
-— *Bench by dj@codetestcode.io, 2026-04-25, in response to PR #13 + PR #14's "200-session bench validates the architecture's main claim." The architecture's main claim turns out to be "we forgot the right baseline."*
+— *Bench by dj@codetestcode.io, 2026-04-25, following on from PR #4 and gene's "Run `experiments/fidelity/frontier.py` against the v3 artifacts when API spend is approved" in `experiments/v3/RESULTS.md`. Posted in the same spirit as the v2 falsification: the data is what it is; the residual claim is intact.*
