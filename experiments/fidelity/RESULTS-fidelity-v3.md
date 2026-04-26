@@ -2,6 +2,8 @@
 
 **Verdict: once a lineage-preserving prose baseline is added, CLM/3.0 with `trim.mode: aggressive` is dominated on the Pareto frontier of `experiments/v3/lineage_qa.json`. Prose at 2,707 tokens scores 11/11 on the answerable questions; CLM/3.0-trim at 36,673 tokens scores 10/11. Same shape of result as PR #4: the structured format isn't on the frontier once the prose baseline is generated with a prompt that knows what to keep.**
 
+> **Update (2026-04-26, PR #16):** Issue #1 in this report (the `lineage_qa.json` keys being from the 10-session thread) has been fixed in PR #16. The cached `results-v3.json` re-scored against the updated keys gives `prose-200-lineage` 15/15, `dreamed-sibling-200-trim` 14/15, `raw-append-200` 14/15. The Pareto verdict above is unchanged — prose-200-lineage still dominates — but the absolute scores improved across all variants once Q3-Q9 became answerable. The body of this report below is preserved verbatim as Don wrote it; the new scores are reflected in the project README.
+
 This experiment runs `experiments/v3/lineage_qa.json` against the v3 artifacts using the same harness methodology as PR #4 (`experiments/fidelity/frontier.py`): single trial, `claude-sonnet-4-6` for both summarize and answer, substring scoring, manual miss classification.
 
 ## Setup
