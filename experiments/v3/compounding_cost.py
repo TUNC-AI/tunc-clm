@@ -145,7 +145,7 @@ def main() -> None:
     print()
     print("(o200k_base tokenizer; ~5-15% off Anthropic's BPE; relative ordering")
     print(" reliable. Prose model power-law-calibrated to PR #15's two empirical")
-    print(" points: N=50→1,007 and N=200→2,707, fit gives 53.2 × N^0.713.)")
+    print(" points: N=50→1,007 and N=200→2,707, fit gives 61.82 × N^0.7133.)")
     print()
     print(f"  Sampled CLM delta block:      {delta_tokens:>4} tokens")
     print(f"  Sampled [ROLL.CALL] line:     {roll_call_tokens:>4} tokens")
