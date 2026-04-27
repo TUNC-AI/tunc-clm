@@ -1,6 +1,6 @@
 # tunc-clm (JavaScript / TypeScript)
 
-Parser and v3.0 trim-aware validator for the **Claude Memory Format**. Pure TypeScript, zero runtime dependencies, ESM + CJS + types.
+Parser and v3.0 trim-aware validator for **CLM (Continuity Log Memory)**. Pure TypeScript, zero runtime dependencies, ESM + CJS + types.
 
 ```bash
 npm install tunc-clm

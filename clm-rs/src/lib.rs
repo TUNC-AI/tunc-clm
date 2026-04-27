@@ -1,4 +1,4 @@
-//! clm-rs — coarse-grained parser for the Claude Memory Format.
+//! clm-rs — coarse-grained parser for CLM (Continuity Log Memory).
 //!
 //! Supports both CLM/1.0 (Unicode brackets `⟦NAME⟧`) and CLM/2.x+/3.0
 //! (ASCII brackets `[NAME]`). The contract is round-trip:

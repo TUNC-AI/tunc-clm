@@ -1,7 +1,7 @@
 {
   "name": "tunc-clm",
-  "version": "0.2.1",
-  "description": "Parser and v3.0 trim-aware validator for CLM (Claude Memory Format)",
+  "version": "0.2.2",
+  "description": "Parser and v3.0 trim-aware validator for CLM (Continuity Log Memory)",
   "keywords": ["clm", "claude", "memory", "ai", "handoff", "format"],
   "homepage": "https://github.com/TUNC-AI/tunc-clm",
   "repository": {
