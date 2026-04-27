@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tunc-clm"
-version = "0.2.1"
-description = "Parser and v3.0 trim-aware validator for CLM (Claude Memory Format)"
+version = "0.2.2"
+description = "Parser and v3.0 trim-aware validator for CLM (Continuity Log Memory)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

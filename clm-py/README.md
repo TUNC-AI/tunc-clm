@@ -1,6 +1,6 @@
 # tunc-clm (Python)
 
-Parser and v3.0 trim-aware validator for the **Claude Memory Format**. Pure Python, no runtime dependencies, type-hinted.
+Parser and v3.0 trim-aware validator for **CLM (Continuity Log Memory)**. Pure Python, no runtime dependencies, type-hinted.
 
 ```bash
 pip install tunc-clm

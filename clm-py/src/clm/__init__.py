@@ -1,4 +1,4 @@
-"""tunc-clm — parser and v3.0 trim-aware validator for the Claude Memory Format.
+"""tunc-clm — parser and v3.0 trim-aware validator for CLM (Continuity Log Memory).
 
 Mirrors the API of the Rust reference implementation (`clm-rs`):
 
@@ -53,4 +53,4 @@ __all__ = [
     "DEFAULT_DECISIONS_LIVE_KEEP",
 ]
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"

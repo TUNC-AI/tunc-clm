@@ -1,6 +1,6 @@
 # clm-rs
 
-A Rust parser, serializer, and append-only mutation API for the Claude Memory Format (CLM/1.0) specified in this repo's [`MANIFESTO.clm`](../MANIFESTO.clm).
+A Rust parser, serializer, and append-only mutation API for CLM (Continuity Log Memory) v1.0, specified in this repo's [`MANIFESTO.clm`](../MANIFESTO.clm).
 
 Status: **v0.1, coarse-grained.** Section bodies are preserved as opaque text. The contract is round-trip equality:
 
