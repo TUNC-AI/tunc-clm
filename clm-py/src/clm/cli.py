@@ -11,6 +11,8 @@ Mirrors what users would expect:
 """
 from __future__ import annotations
 
+import dataclasses
+import json
 import sys
 from pathlib import Path
 
@@ -25,7 +27,7 @@ from clm import (
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
-    if len(argv) < 2 or argv[0] not in ("validate", "parse"):
+    if len(argv) < 2 or argv[0] not in ("validate", "parse", "ast"):
         _usage()
         return 2
     cmd, path = argv[0], argv[1]
@@ -43,6 +45,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if cmd == "parse":
         print(f"OK: parsed {len(doc.sections)} sections, header has {len(doc.header)} lines.")
+        return 0
+
+    if cmd == "ast":
+        print(json.dumps(dataclasses.asdict(doc), indent=2, ensure_ascii=False))
         return 0
 
     # validate
@@ -69,6 +75,7 @@ def _usage() -> None:
     print("usage: clm <command> <file.clm>", file=sys.stderr)
     print("commands:", file=sys.stderr)
     print("  parse     parse the file; report section count", file=sys.stderr)
+    print("  ast       parse the file; dump the AST as JSON to stdout", file=sys.stderr)
     print("  validate  parse + run v3.0 trim-aware validation (with filesystem checks)", file=sys.stderr)
 
 
